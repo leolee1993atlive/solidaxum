@@ -1,0 +1,4 @@
+// Generated types for {{ business_name }}
+export interface {{ class_name }} {
+  // TODO: add fields
+}

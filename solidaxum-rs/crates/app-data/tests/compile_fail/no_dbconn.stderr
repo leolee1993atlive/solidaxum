@@ -1,0 +1,5 @@
+error[E0432]: unresolved import `app_data::sea_orm::DbConn`
+ --> tests/compile_fail/no_dbconn.rs:2:5
+  |
+2 | use app_data::sea_orm::DbConn;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^ no `DbConn` in `sea_orm`

@@ -1,0 +1,5 @@
+edition = "2024"
+imports_granularity = "Crate" # 新版本推荐使用这个配置
+group_imports = "StdExternalCrate"
+imports_layout = "Mixed"
+max_width = 80

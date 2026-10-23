@@ -1,0 +1,6 @@
+<!-- Generated Svelte page for {{ business_name }} -->
+<script lang="ts">
+  // Table: {{ table_name }}
+</script>
+
+<div>{{ class_name }} page</div>

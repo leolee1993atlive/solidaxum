@@ -1,0 +1,32 @@
+* text=auto
+
+# Source
+*.rs     text diff=rust
+*.toml   text
+*.ts     text
+*.js     text
+*.svelte text
+*.css    text
+*.md     text
+*.sql    text
+*.ps1    text
+*.iss    text
+*.xml    text
+
+# Shell scripts and templates that end up inside Linux packages must stay LF.
+*.sh        text eol=lf
+*.service   text eol=lf
+*.tmpl      text eol=lf
+Dockerfile* text eol=lf
+
+# Binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.zip   binary
+*.exe   binary
+*.dll   binary

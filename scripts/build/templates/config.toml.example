@@ -1,0 +1,37 @@
+[server]
+port = 3000
+host = "localhost"
+# static_dir = "./static"  # Enables static SPA hosting
+
+# db_type: mysql | postgres | sqlite | dm(达梦 DM8,走 ODBC)
+[db]
+db_type = "mysql"
+url = "localhost"
+port = 3306
+# 达梦填 ODBC 数据源名(不是库名);sqlite 填数据库文件路径
+db_name = "solidaxum"
+username = "root"
+password = "your_password"
+# 达梦:裸表名解析所在的 schema(即建表账号名,如 RUOYI);PG:等价 search_path。
+# mysql / sqlite 忽略。留空 = 不设置。
+schema = ""
+
+[redis]
+url = "localhost"
+port = 6379
+password = ""
+db = 10
+
+[jwt]
+secret = "replace-with-your-own-secret-key"
+access_ttl = 3600
+refresh_ttl = 604800
+
+[log]
+dir = "logs"
+prefix = "solidaxum"
+
+[pool]
+db_max_connections = 10
+db_min_connections = 2
+redis_max_connections = 16

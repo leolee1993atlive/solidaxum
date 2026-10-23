@@ -1,0 +1,80 @@
+# 由交互式安装向导自动生成,请勿手动编辑 [server]/[db]/[redis] 段
+# (升级安装会覆盖这三段)。其余段([log]/[pool]/[captcha]/[security]/
+# [codegen]/[oss])可按需手改,升级时会保留。
+
+# ────────── 服务 ──────────
+[server]
+port = @PORT@
+host = "localhost"
+# static_dir = "./static"   # 可选:启用 SPA 静态托管(放编译后的前端)
+
+# ────────── 数据库 ──────────
+# db_type: mysql | postgres | sqlite | dm(达梦 DM8,走 ODBC)
+[db]
+db_type = "@DB_TYPE@"
+# 达梦不用 url / port —— SERVER 与 TCP_PORT 由 ODBC 数据源提供
+url = "@DB_URL@"
+port = @DB_PORT@
+# 达梦:填已注册的 ODBC 数据源名(不是库名);sqlite:填数据库文件路径
+db_name = "@DB_NAME@"
+username = "@DB_USERNAME@"
+password = "@DB_PASSWORD@"
+# 达梦:裸表名在哪个 schema 下解析。schema 即建表账号名(如 RUOYI),不是库名;
+# 用建表账号本身登录时可留空。PostgreSQL:等价于 search_path。
+# mysql / sqlite 忽略本项。留空 = 不设置。
+schema = "@DB_SCHEMA@"
+
+# ────────── Redis ──────────
+[redis]
+url = "@REDIS_URL@"
+port = @REDIS_PORT@
+password = "@REDIS_PASSWORD@"
+db = @REDIS_DB@
+
+# ────────── JWT(签名密钥) ──────────
+# 注意:当前 token 实现已改用 Redis session(UUID),此字段仅用于启动校验
+# (长度须 ≥ 16)。轮换不影响已签发 token。由安装向导随机生成。
+[jwt]
+secret = "@JWT_SECRET@"
+access_ttl = 3600
+refresh_ttl = 604800
+
+# ────────── 日志 ──────────
+[log]
+dir = "logs"
+prefix = "solidaxum"
+
+# ────────── 连接池 ──────────
+[pool]
+db_max_connections = 10
+db_min_connections = 2
+redis_max_connections = 16
+
+# ────────── 验证码 ──────────
+[captcha]
+enable = false
+captcha_type = "math"
+
+# ────────── 安全 ──────────
+[security]
+rate_limit_capacity = 100
+rate_limit_window_secs = 60
+repeat_submit_ttl_seconds = 5
+xss_enabled = true
+xss_exclude_paths = []
+# AES-256 字段加密密钥(32 字节的 base64 编码)。
+# 用于 OSS access_key/secret_key 加密存储。由安装向导随机生成。
+# ⚠️ 升级安装**不会**覆盖此密钥 —— 轮换会使已加密的 OSS 配置不可读。
+# 手动生成: openssl rand 32 | base64
+aes_key = "@AES_KEY@"
+
+# ────────── 代码生成 ──────────
+[codegen]
+package_name = "crates.system"
+frontend_type = "vue"
+author = "SolidAxum"
+
+# ────────── 对象存储 ──────────
+[oss]
+# 上传单文件大小上限。支持纯数字(字节)或人类可读格式:10MB / 1GB / 512KB。
+upload_body_limit = "10MB"

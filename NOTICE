@@ -1,0 +1,48 @@
+SolidAxum
+Copyright 2026 SolidAxum contributors
+
+This product is a Rust/SvelteKit port and derivative work of the open-source
+projects listed below. Their licenses and copyright notices apply to the
+portions derived from them.
+
+================================================================================
+RuoYi-Vue-Plus  (backend)  and  RuoYi-Vue-Plus-Ui  (Vue 3 frontend)
+License: MIT
+Copyright (c) 2019 RuoYi-Vue-Plus
+================================================================================
+
+  The HTTP API contract, data model, permission/data-scope model, code
+  generator, and the initial seed data are ported from RuoYi-Vue-Plus.
+  solidaxum-ui is a SvelteKit port of the RuoYi-Vue-Plus Vue 3 frontend.
+
+  A copy of the MIT license text is available at
+  https://opensource.org/licenses/MIT
+
+================================================================================
+warm-flow
+License: Apache-2.0
+================================================================================
+
+  solidaxum-rs/crates/flow is a Rust port of the warm-flow workflow engine,
+  including its expression language, listener model, and node/skip semantics.
+
+  A copy of the Apache License 2.0 text is available at
+  https://www.apache.org/licenses/LICENSE-2.0
+
+================================================================================
+sea-orm  (vendored fork in solidaxum-rs/vendor/sea-orm)
+License: MIT OR Apache-2.0
+Copyright (c) 2021 SeaQL
+================================================================================
+
+  The vendored fork adds a DM (DaMeng) database backend. See
+  solidaxum-rs/vendor/sea-orm/LICENSE-MIT and
+  solidaxum-rs/vendor/sea-orm/LICENSE-APACHE for the full license texts.
+
+================================================================================
+Other third-party dependencies
+================================================================================
+
+  All other Rust and JavaScript dependencies retain their own licenses as
+  declared in solidaxum-rs/Cargo.lock, solidaxum-ui/pnpm-lock.yaml, and each
+  dependency's package metadata.

@@ -1,0 +1,27 @@
+[package]
+name = "app_data"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+
+[features]
+# 测试脚手架开关:暴露 src/testing.rs(SQLite 内存库 + 测试实体)。
+# 业务 crate 只允许经 [dev-dependencies] 启用,见设计 9 节第 4 条。
+# SQLite 驱动无需在此声明 feature —— workspace 的 sea-orm 已带 sqlx-sqlite。
+test-util = []
+
+[dependencies]
+# 整个 workspace 唯一的 sea-orm [dependencies](设计 6.1)。dm crate 在 fork 之下,不算。
+sea-orm.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+# dyn ScopeResolver 的 async trait 对象安全
+async-trait.workspace = true
+# TxnContext 闭包签名用 BoxFuture
+futures.workspace = true
+# OnceCell(惰性 ScopeFilter)
+tokio = { workspace = true, features = ["sync"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+trybuild = "1.0"

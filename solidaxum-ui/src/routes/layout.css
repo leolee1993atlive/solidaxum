@@ -1,0 +1,299 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+/* _fallback 必须排在所有具名皮肤之前,详见该文件顶部注释 */
+@import './../lib/themes/_fallback.css';
+@import './../lib/themes/teal.css';
+@import './../lib/themes/default.css';
+@import './../lib/themes/de-swiss-design.css';
+@import './../lib/themes/ibm-carbon.css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  color-scheme: light;
+  /* 滚动条：浅色模式下避免系统默认近黑粗条。轨道透明,靠 thumb 显形。
+     从 --muted-foreground 派生而不是写死 hex —— 四套皮肤各自跟随自己的
+     中性色阶,瑞士那种高对比皮肤不会被硬塞一个 zinc 灰。 */
+  --scrollbar-thumb: color-mix(
+    in oklch,
+    var(--muted-foreground) 35%,
+    var(--card)
+  );
+  --scrollbar-track: transparent;
+}
+
+.dark {
+  color-scheme: dark;
+  --scrollbar-thumb: color-mix(
+    in oklch,
+    var(--muted-foreground) 45%,
+    var(--card)
+  );
+  --scrollbar-track: transparent;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary-emphasis: var(--primary-emphasis);
+  --color-header: var(--header);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-emphasis: var(--success-emphasis);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-emphasis: var(--warning-emphasis);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-primary-tint: var(--primary-tint);
+  --color-success-tint: var(--success-tint);
+  --color-warning-tint: var(--warning-tint);
+  --color-info-tint: var(--info-tint);
+  --color-danger-tint: var(--danger-tint);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+  --shadow-card: var(--shadow-card);
+  --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
+  --tracking-tight: calc(var(--tracking-normal) - 0.025em);
+  --tracking-normal: var(--tracking-normal);
+  --tracking-wide: calc(var(--tracking-normal) + 0.025em);
+  --tracking-wider: calc(var(--tracking-normal) + 0.05em);
+  --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  /* —— reduced-motion 全局兜底。 ——
+   *
+   * 用户系统开启「减弱动态效果」时,所有动画/过渡/平滑滚动一刀切归零。
+   * 兜住 collapsible 展开、页面切换、页签 flip 等全部动效,
+   * 不需要逐组件处理。
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* —— 滚动条。
+   *
+   * 关键约束:Chrome 121 起,元素上只要出现标准属性 scrollbar-width 或
+   * scrollbar-color(非初始值),同一元素的 ::-webkit-scrollbar-* 伪元素
+   * 就会被**整体忽略**。Chrome 148 实测对照:
+   *
+   *   ::-webkit-scrollbar{width:6px} 单独用         → gutter 6px  ✅
+   *   同上 + scrollbar-width:thin                   → gutter 10px ❌(回落标准 thin)
+   *   scrollbar-width:thin 单独用                    → gutter 10px
+   *
+   * 也就是说:标准属性一旦写在 `*` 上,下面所有 webkit 规则(6px 宽、去箭头、
+   * 圆角、悬停显形)全部失效,Windows Chrome 会渲染自带上下箭头的标准 thin
+   * 滚动条 —— 这正是「去箭头怎么改都不生效」的根因。
+   *
+   * 故标准属性只留给不认 webkit 伪元素的浏览器(Firefox),用 @supports 做
+   * 特性分流;Chromium / WebKit 走下面的伪元素分支。 —— */
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+
+    /* 鼠标悬停在滚动容器上时才显形。Firefox 的 thin 滚动条本身不画箭头。 */
+    *:hover {
+      scrollbar-color: var(--scrollbar-thumb) transparent;
+    }
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  /* 去掉滚动条两端的箭头按钮(▲▼)。自定义 webkit 滚动条默认就不画按钮,
+     这条是兜底,防止平台默认皮肤漏出来。 */
+  *::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* 默认透明,鼠标悬停容器时显形 */
+  *::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 3px;
+  }
+
+  *:hover::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(
+      in oklch,
+      var(--scrollbar-thumb) 78%,
+      var(--foreground)
+    );
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
+@custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])));
+@custom-variant data-checked (&:where([data-state="checked"], [data-checked]:not([data-checked="false"])));
+@custom-variant data-unchecked (&:where([data-state="unchecked"], [data-unchecked]:not([data-unchecked="false"])));
+@custom-variant data-selected (&:where([data-selected]));
+@custom-variant data-disabled (&:where([data-disabled="true"], [data-disabled]:not([data-disabled="false"])));
+@custom-variant data-active (&:where([data-state="active"], [data-active]:not([data-active="false"])));
+@custom-variant data-horizontal (&:where([data-orientation="horizontal"]));
+@custom-variant data-vertical (&:where([data-orientation="vertical"]));
+
+/* —— 侧栏滚动条不挤占菜单宽度 ——
+ *
+ * 原生滚动条无法悬浮在内容上:overflow:overlay 已在 Chrome 121 移除,
+ * Chrome 148 实测 computed 值直接是 auto、gutter 仍占 15px,
+ * 写了等于没写。所以 6px 的槽位一定要从某处扣,区别只在扣谁的:
+ *
+ *   scrollbar-gutter: stable   槽位常驻 —— 内容长短变化时不再抖动
+ *   sidebar-group 右内边距 -6px 让出的 6px 由内边距补回,不从菜单项身上扣
+ *
+ * 净效果(184px 定宽侧栏):菜单项 w-full 实绘 = 184 − 6 − 8 − 2 = 168px,
+ * 与「没有滚动条」时完全一致,选中胶囊不再随滚动条出现而变窄。
+ * 折叠态菜单项是 size-8!(32px)固定方块,不受内边距影响。 */
+[data-slot='sidebar-content'] {
+  scrollbar-gutter: stable;
+}
+
+[data-slot='sidebar-content'] [data-slot='sidebar-group'] {
+  /* sidebar-group 基类是 p-2(8px);右侧扣掉滚动条的 6px */
+  padding-right: calc(0.5rem - 6px);
+}
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* 富文本样式 —— RichTextEditor(编辑面)与 SafeHtml(渲染面)共用一份。
+   Tailwind preflight 把 h1/ul/blockquote 的默认样式清空了,这里按
+   src/lib/html/sanitize.ts 的白名单逐条补回来。白名单加标签时这里同步加,
+   否则新标签在页面上「看不出来」。 */
+.rich-text {
+  line-height: 1.7;
+}
+.rich-text h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0.67em 0;
+}
+.rich-text h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.75em 0;
+}
+.rich-text h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0.83em 0;
+}
+.rich-text p {
+  margin: 0.5em 0;
+}
+.rich-text ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin: 0.5em 0;
+}
+.rich-text ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin: 0.5em 0;
+}
+.rich-text li {
+  margin: 0.25em 0;
+}
+.rich-text blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.75rem;
+  color: var(--muted-foreground);
+  margin: 0.5em 0;
+}
+.rich-text hr {
+  border-top: 1px solid var(--border);
+  margin: 1em 0;
+}
+.rich-text a {
+  color: var(--primary-emphasis);
+  text-decoration: underline;
+}
+.rich-text img {
+  max-width: 100%;
+  height: auto;
+}
+.rich-text u {
+  text-decoration: underline;
+}
+.rich-text s {
+  text-decoration: line-through;
+}
+/* ProseMirror 的编辑区自带 outline,与 shadcn 的 focus ring 打架 */
+.rich-text:focus {
+  outline: none;
+}

@@ -1,0 +1,34 @@
+[package]
+name = "dm"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+# default-features = false 是硬约束:默认 feature 含 prompt,会拖入 winit 整套 GUI 栈,
+# 无桌面的麒麟服务器上会因缺 X11 开发库而编译失败。
+odbc-api = { version = "29.0.0", default-features = false, features = ["odbc_version_3_80"] }
+# 依赖 sea-query 而非 sea-orm:vendored sea-orm 要依赖本 crate,反向依赖会成环。
+# sea_orm::Value 本就是 sea_query::Value 的 re-export(database/statement.rs:5)。
+#
+# 三个 feature 必须在此显式声明:入参映射要匹配 Value 的 ChronoXxx / Json / Uuid
+# 变体,而它们在 sea-query 里是 feature 门控的。不声明的话本 crate 只有在
+# workspace 里与 sea-orm 一起构建、靠 feature 合并才能编过,`cargo build -p dm`
+# 单独构建则失败。与根 Cargo.toml 给 sea-orm 开的是同一组,不改变合并后的特性集。
+sea-query = { workspace = true, features = ["with-chrono", "with-json", "with-uuid"] }
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+# 入参映射需要:chrono 拆出年月日时分秒填进 ODBC 的 Timestamp/Date/Time 结构,
+# serde_json 把 Value::Json 序列化成文本。二者都是 sea-query 已启用 feature
+# (with-chrono / with-json)所对应的类型来源,不是新增的传递依赖。
+chrono.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+# 仅测试用:构造 Value::Uuid 的样本。实现侧只调 Display,不需要具名依赖。
+uuid.workspace = true
+# e2e 测试要经 SeaORM 走达梦。sea-orm(fork)依赖本 crate,这里是反向的
+# dev-dependency —— Cargo 允许 dev-dependency 与正常依赖成环。
+sea-orm.workspace = true

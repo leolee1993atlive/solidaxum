@@ -1,0 +1,94 @@
+[workspace]
+members = ["crates/core", "crates/system", "crates/admin", "crates/flow", "crates/monitor", "crates/job", "crates/dm", "crates/app-data"]
+# dm-probe 刻意排除在 workspace 之外:它链接 unixODBC,若进了 workspace,
+# 所有开发机和 CI 都得装 ODBC 开发库才能 `cargo build`。
+exclude = ["tools/dm-probe"]
+resolver = "2"
+
+[profile.dev]
+# Keep file:line info for backtraces but drop full debuginfo — faster codegen
+# and PDB generation across every crate (helps the cascade rebuild a lot).
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+# Third-party deps: we never step-debug into them, so skip debuginfo entirely.
+debug = false
+
+# Crypto/compression are brutally slow when unoptimized. These deps compile once
+# but the optimization speeds up every test run and local request.
+[profile.dev.package.bcrypt]
+opt-level = 3
+[profile.dev.package.aes-gcm]
+opt-level = 3
+
+[workspace.package]
+edition = "2024"
+publish = false
+
+[workspace.dependencies]
+anyhow = "1.0"
+aws-config = "1.5"
+aws-sdk-s3 = "1.86"
+axum = "0.8.9"
+axum-extra = { version = "0.12.6", features = ["typed-header"] }
+tower-http = { version = "0.6.11", features = ["trace", "fs", "cors", "catch-panic"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.52", features = ["full"] }
+tracing = { version = "0.1", features = ["attributes"] }
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+redis = { version = "1.2", features = ["aio", "tokio-comp"] }
+deadpool-redis = "0.23"
+thiserror = "2.0"
+config = "0.15"
+chrono = { version = "0.4", features = ["serde"] }
+validator = { version = "0.20", features = ["derive"] }
+bcrypt = "0.19"
+aes-gcm = "0.10"
+base64 = "0.22"
+rand = "0.10"
+uuid = { version = "1.23", features = ["v7"] }
+regex = "1.12"
+metrics = "0.24"
+metrics-exporter-prometheus = "0.18"
+sea-orm = { version = "2.0.2", features = [
+    "sqlx-mysql",
+    "sqlx-postgres",
+    "sqlx-sqlite",
+    "runtime-tokio-rustls",
+    "macros",
+    "with-chrono",
+    "with-uuid",
+    "with-json",
+] }
+rs-snowflake = "0.6"
+system = { path = "crates/system" }
+monitor = { path = "crates/monitor" }
+sea-query = "1.0.1"
+app_data = { path = "crates/app-data" }
+futures = "0.3"
+tower = { version = "0.5", features = ["util"] }
+bytes = "1.10"
+http = "1.3"
+rust_xlsxwriter = "0.80"
+image = { version = "0.25", default-features = false, features = ["png"] }
+job = { path = "crates/job" }
+async-trait = "0.1"
+tokio-cron-scheduler = "0.13"
+# 交互式安装子命令(--write-config / --check-config)用:
+# toml_edit 升级时外科手术式更新 config.toml(保留注释/手改字段/加密密钥);
+# toml 解析脚本层写入的 answers.toml;
+# percent-encoding 对 DSN 的 username/password 做 URL 编码。
+toml = "0.9"
+toml_edit = "0.23"
+percent-encoding = "2.3"
+
+# sea-orm 的 vendored fork:新增 DatabaseBackend::Dm(达梦)。
+# 基线提交与 fork patch 分开提交,`git diff <基线提交> -- vendor/sea-orm`
+# 可精确提取 patch 集,便于日后 rebase。
+#
+# 注意:本段必须留在文件末尾 —— [patch.crates-io] 之后的任何键都归它管,
+# 新增 workspace 依赖要加在这一段**之前**。
+[patch.crates-io]
+sea-orm = { path = "vendor/sea-orm" }

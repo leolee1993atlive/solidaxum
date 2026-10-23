@@ -1,0 +1,6 @@
+<!-- Generated Svelte tree page for {{ business_name }} -->
+<script lang="ts">
+  // Tree table: {{ table_name }}
+</script>
+
+<div>{{ class_name }} tree page</div>

@@ -1,0 +1,23 @@
+.worktrees/
+worktrees/
+*.log
+logs/
+
+# 参考实现的本地克隆:手工克隆,不跟踪
+RuoYi-Vue-Plus/
+RuoYi-Vue-Plus-Ui/
+warm-flow/
+liteflow/
+
+solidaxum.code-workspace
+
+# 压测生成物
+bench/.work/
+bench/seed/out/
+bench/results/*.csv
+
+# 构建产物输出目录(scripts/build 的 dist/)
+dist/
+
+# 交接说明,发布前删除
+HANDOFF.md

@@ -1,0 +1,118 @@
+.theme-de-swiss-design {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0 0 0);
+  --primary: hsl(0, 100%, 43%);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0 0 0);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.9696 0 0);
+  --muted-foreground: oklch(0.5103 0 0);
+  --accent: oklch(0.8408 0.1725 84.2008);
+  --accent-foreground: oklch(0 0 0);
+  --destructive: oklch(0.5308 0.2178 29.2339);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0 0 0);
+  --input: oklch(1 0 0);
+  --ring: oklch(0.5799 0.238 29.2339);
+  --chart-1: oklch(0 0 0);
+  --chart-2: oklch(0.5799 0.238 29.2339);
+  --chart-3: oklch(0.8408 0.1725 84.2008);
+  --chart-4: oklch(0.4907 0.0695 144.426);
+  --chart-5: oklch(0.5166 0.0826 46.9154);
+  --sidebar: oklch(0.9848 0 0);
+  --sidebar-foreground: oklch(0 0 0);
+  --sidebar-primary: oklch(0.5799 0.238 29.2339);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.9234 0 0);
+  --sidebar-accent-foreground: oklch(0 0 0);
+  --sidebar-border: oklch(0 0 0);
+  --sidebar-ring: oklch(0.5799 0.238 29.2339);
+  --font-sans: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-serif: 'Georgia', serif;
+  --font-mono: 'SF Mono', 'Courier New', monospace;
+  --radius: 0px;
+  --shadow-x: 3px;
+  --shadow-y: 3px;
+  --shadow-blur: 0px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 1;
+  --shadow-color: hsl(0, 0%, 0%);
+  --shadow-2xs: 3px 3px 0px 0px hsl(0 0% 0% / 0.5);
+  --shadow-xs: 3px 3px 0px 0px hsl(0 0% 0% / 0.5);
+  --shadow-sm:
+    3px 3px 0px 0px hsl(0 0% 0% / 1), 3px 1px 2px -1px hsl(0 0% 0% / 1);
+  --shadow: 3px 3px 0px 0px hsl(0 0% 0% / 1), 3px 1px 2px -1px hsl(0 0% 0% / 1);
+  --shadow-md:
+    3px 3px 0px 0px hsl(0 0% 0% / 1), 3px 2px 4px -1px hsl(0 0% 0% / 1);
+  --shadow-lg:
+    3px 3px 0px 0px hsl(0 0% 0% / 1), 3px 4px 6px -1px hsl(0 0% 0% / 1);
+  --shadow-xl:
+    3px 3px 0px 0px hsl(0 0% 0% / 1), 3px 8px 10px -1px hsl(0 0% 0% / 1);
+  --shadow-2xl: 3px 3px 0px 0px hsl(0 0% 0% / 2.5);
+  --tracking-normal: -0.02em;
+  --spacing: 0.25rem;
+}
+
+.theme-de-swiss-design.dark {
+  --background: oklch(0 0 0);
+  --foreground: oklch(1 0 0);
+  --card: oklch(0.1457 0 0);
+  --card-foreground: oklch(1 0 0);
+  --popover: oklch(0.1457 0 0);
+  --popover-foreground: oklch(1 0 0);
+  --primary: oklch(0.628 0.2577 29.2339);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(1 0 0);
+  --secondary-foreground: oklch(0 0 0);
+  --muted: oklch(0.2376 0 0);
+  --muted-foreground: oklch(0.7652 0 0);
+  --accent: oklch(0.8533 0.1706 86.7515);
+  --accent-foreground: oklch(0 0 0);
+  --destructive: oklch(0.6489 0.237 26.9728);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(1 0 0);
+  --input: oklch(0 0 0);
+  --ring: oklch(0.628 0.2577 29.2339);
+  --chart-1: oklch(1 0 0);
+  --chart-2: oklch(0.628 0.2577 29.2339);
+  --chart-3: oklch(0.8533 0.1706 86.7515);
+  --chart-4: oklch(0.5773 0.065 144.6756);
+  --chart-5: oklch(0.6009 0.0747 47.4204);
+  --sidebar: oklch(0.1157 0 0);
+  --sidebar-foreground: oklch(1 0 0);
+  --sidebar-primary: oklch(0.628 0.2577 29.2339);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.2697 0 0);
+  --sidebar-accent-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(1 0 0);
+  --sidebar-ring: oklch(0.628 0.2577 29.2339);
+  --font-sans: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-serif: 'Georgia', serif;
+  --font-mono: 'SF Mono', 'Courier New', monospace;
+  --radius: 0px;
+  --shadow-x: 3px;
+  --shadow-y: 3px;
+  --shadow-blur: 0px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 1;
+  --shadow-color: hsl(0, 0%, 100%);
+  --shadow-2xs: 3px 3px 0px 0px hsl(0 0% 100% / 0.5);
+  --shadow-xs: 3px 3px 0px 0px hsl(0 0% 100% / 0.5);
+  --shadow-sm:
+    3px 3px 0px 0px hsl(0 0% 100% / 1), 3px 1px 2px -1px hsl(0 0% 100% / 1);
+  --shadow:
+    3px 3px 0px 0px hsl(0 0% 100% / 1), 3px 1px 2px -1px hsl(0 0% 100% / 1);
+  --shadow-md:
+    3px 3px 0px 0px hsl(0 0% 100% / 1), 3px 2px 4px -1px hsl(0 0% 100% / 1);
+  --shadow-lg:
+    3px 3px 0px 0px hsl(0 0% 100% / 1), 3px 4px 6px -1px hsl(0 0% 100% / 1);
+  --shadow-xl:
+    3px 3px 0px 0px hsl(0 0% 100% / 1), 3px 8px 10px -1px hsl(0 0% 100% / 1);
+  --shadow-2xl: 3px 3px 0px 0px hsl(0 0% 100% / 2.5);
+  --tracking-normal: -0.02em;
+  --spacing: 0.25rem;
+}

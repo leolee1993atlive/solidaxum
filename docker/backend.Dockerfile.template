@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1
+FROM rust:1.94-slim-bookworm AS builder
+
+WORKDIR /app
+# monorepo 固定布局:后端目录恒为 solidaxum-rs(与 repo 名解耦;
+# cargo bin 名恒为 solidaxum,镜像内产物按 @REPO_NAME@ 改名落位)
+COPY solidaxum-rs ./solidaxum-rs
+
+# unixodbc-dev:dm crate 是 vendored sea-orm 的无条件依赖,链接期需要 libodbc,
+# 缺了会报 "cannot find -lodbc"。与镜像里最终跑哪种数据库无关。
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        pkg-config libssl-dev unixodbc-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/solidaxum-rs
+RUN cargo build --release
+
+FROM debian:bookworm-slim
+
+# odbc-sys 动态链接驱动管理器,没有 libodbc.so.2 进程直接起不来
+# (error while loading shared libraries),同样与用哪种数据库无关。
+#
+# 注意:这只保证容器能启动。容器内跑达梦还需另行挂载客户侧的 libdodbc.so
+# 与 odbcinst.ini —— 本镜像不包含达梦驱动。
+RUN apt-get update && apt-get install -y --no-install-recommends libodbc2 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app app
+
+WORKDIR /app
+COPY --from=builder /app/solidaxum-rs/target/release/solidaxum /app/@REPO_NAME@
+COPY scripts/build/templates/config.toml.example /app/config.toml.example
+COPY solidaxum-ui/build /app/web
+
+RUN mkdir -p /app/data /app/logs && chown -R app:app /app
+
+USER app
+
+EXPOSE 3000
+
+ENV RUST_LOG=info
+
+CMD ["/app/@REPO_NAME@"]

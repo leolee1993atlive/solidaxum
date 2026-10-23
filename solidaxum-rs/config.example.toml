@@ -1,0 +1,81 @@
+# SolidAxum 配置样例。
+# 复制为 config.toml 后按实际环境修改 —— config.toml 已在 .gitignore 中,不会入库。
+
+[server]
+port = 3001
+host = "localhost"
+# static_dir = "./static"   # 可选：启用 SPA 静态托管
+
+[db]
+db_type = "mysql"           # mysql | postgres | sqlite | dm
+url = "localhost"
+port = 3306
+db_name = "ruoyi"
+username = "root"
+password = "your_password"
+
+# [db]
+# db_type = "dm"
+# url = "localhost"
+# port = 5236
+# db_name = "DM8"
+# schema = "RUOYI_DM"
+# username = "SYSDBA"
+# password = "your_password"
+
+[redis]
+url = "localhost"
+port = 6379
+password = ""
+db = 10
+
+[jwt]
+secret = "replace-with-your-own-secret-key"
+access_ttl = 3600
+refresh_ttl = 604800
+
+
+[log]
+dir = "logs"
+prefix = "solidaxum"
+
+[pool]
+db_max_connections = 10
+db_min_connections = 2
+redis_max_connections = 16
+
+[captcha]
+enable = false
+captcha_type = "math"
+
+[security]
+rate_limit_capacity = 100
+rate_limit_window_secs = 60
+repeat_submit_ttl_seconds = 5
+xss_enabled = true
+xss_exclude_paths = []
+# AES-256 字段加密密钥（32 字节的 base64 编码）。
+# 生产环境必须替换为随机密钥。留空则不加密。
+# 生成方法: openssl rand 32 | base64
+aes_key = ""
+
+[codegen]
+package_name = "crates.system"
+frontend_type = "vue"
+author = "SolidAxum"
+
+[oss]
+# 上传单文件大小上限。支持纯数字(字节)或人类可读格式:10MB / 1GB / 512KB。
+# 仅作用于 /resource/oss/upload(axum 默认 2MB,不足以承载图片/文件上传)。
+# 对齐 RuoYi `spring.servlet.multipart.max-file-size: 10MB`。
+upload_body_limit = "10MB"
+
+[app]
+# 分页总数的计数口径。
+#   capped —— 对 LIMIT count_cap + 1 的子查询计数。不到上限时就是精确值,
+#             超出时返回上限并置截断标记,前端渲染成 "10000+"。
+#   exact  —— 全量 COUNT(*),代价与结果集大小成正比(20 万行实测
+#             PG 7.9 ms / MySQL 47.7 ms)。
+# 逐调用点的 page_exact() / exact_total() 不受此项影响,始终精确。
+count_mode = "capped"
+count_cap = 10000

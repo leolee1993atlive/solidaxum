@@ -1,0 +1,48 @@
+/*
+  不用 highlight.js 自带的主题 CSS —— 那些是写死颜色的,切暗色会瞎。
+  这里把 hljs 的语义类映射到应用的 CSS 变量,明暗两套自动跟随。
+*/
+.hljs {
+  color: var(--color-foreground);
+  background: transparent;
+}
+.hljs-comment,
+.hljs-quote {
+  color: var(--color-muted-foreground);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-doctag,
+.hljs-name {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.hljs-string,
+.hljs-attr,
+.hljs-attribute,
+.hljs-regexp {
+  color: var(--color-chart-2, var(--color-primary));
+}
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--color-chart-4, var(--color-foreground));
+}
+.hljs-title,
+.hljs-section,
+.hljs-type,
+.hljs-built_in {
+  color: var(--color-chart-1, var(--color-foreground));
+}
+.hljs-meta,
+.hljs-deletion {
+  color: var(--color-destructive);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 700;
+}

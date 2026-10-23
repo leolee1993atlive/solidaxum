@@ -1,0 +1,164 @@
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans/latin-ext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans/latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans/latin-ext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans/latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans/latin-ext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans/latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+.theme-ibm-carbon {
+  --background: oklch(0.968 0 0);
+  --foreground: oklch(0.213 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.213 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.213 0 0);
+  --primary: oklch(0.446 0.195 259.4);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.922 0 0);
+  --secondary-foreground: oklch(0.213 0 0);
+  --muted: oklch(0.922 0 0);
+  --muted-foreground: oklch(0.44 0 0);
+  --accent: oklch(0.922 0 0);
+  --accent-foreground: oklch(0.213 0 0);
+  --destructive: oklch(0.508 0.181 19.7);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.874 0 0);
+  --input: oklch(1 0 0);
+  --ring: oklch(0.446 0.195 259.4);
+  --chart-1: oklch(0.446 0.195 259.4);
+  --chart-2: oklch(0.65 0.14 190);
+  --chart-3: oklch(0.55 0.22 295);
+  --chart-4: oklch(0.6 0.14 145);
+  --chart-5: oklch(0.8 0.15 90);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.213 0 0);
+  --sidebar-primary: oklch(0.446 0.195 259.4);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.922 0 0);
+  --sidebar-accent-foreground: oklch(0.213 0 0);
+  --sidebar-border: oklch(0.874 0 0);
+  --sidebar-ring: oklch(0.446 0.195 259.4);
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  --font-serif: 'IBM Plex Serif', ui-serif, Georgia, serif;
+  --radius: 0px;
+  --shadow-2xs: none;
+  --shadow-xs: none;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 2px 4px 0 rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 4px 8px 0 rgb(0 0 0 / 0.05);
+  --shadow-xl: 0 8px 16px 0 rgb(0 0 0 / 0.05);
+  --shadow-2xl: 0 12px 24px 0 rgb(0 0 0 / 0.08);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+.theme-ibm-carbon.dark {
+  --background: oklch(0.213 0 0);
+  --foreground: oklch(0.968 0 0);
+  --card: oklch(0.269 0 0);
+  --card-foreground: oklch(0.968 0 0);
+  --popover: oklch(0.269 0 0);
+  --popover-foreground: oklch(0.968 0 0);
+  --primary: oklch(0.544 0.18 259.4);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.336 0 0);
+  --secondary-foreground: oklch(0.968 0 0);
+  --muted: oklch(0.336 0 0);
+  --muted-foreground: oklch(0.63 0 0);
+  --accent: oklch(0.336 0 0);
+  --accent-foreground: oklch(0.968 0 0);
+  --destructive: oklch(0.577 0.2 27.3);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.44 0 0);
+  --input: oklch(0.336 0 0);
+  --ring: oklch(0.544 0.18 259.4);
+  --chart-1: oklch(0.544 0.18 259.4);
+  --chart-2: oklch(0.75 0.14 190);
+  --chart-3: oklch(0.65 0.22 295);
+  --chart-4: oklch(0.7 0.14 145);
+  --chart-5: oklch(0.85 0.15 90);
+  --sidebar: oklch(0.269 0 0);
+  --sidebar-foreground: oklch(0.968 0 0);
+  --sidebar-primary: oklch(0.544 0.18 259.4);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.336 0 0);
+  --sidebar-accent-foreground: oklch(0.968 0 0);
+  --sidebar-border: oklch(0.44 0 0);
+  --sidebar-ring: oklch(0.544 0.18 259.4);
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  --font-serif: 'IBM Plex Serif', ui-serif, Georgia, serif;
+  --radius: 0px;
+  --shadow-2xs: none;
+  --shadow-xs: none;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 2px 4px 0 rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 4px 8px 0 rgb(0 0 0 / 0.05);
+  --shadow-xl: 0 8px 16px 0 rgb(0 0 0 / 0.05);
+  --shadow-2xl: 0 12px 24px 0 rgb(0 0 0 / 0.08);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}

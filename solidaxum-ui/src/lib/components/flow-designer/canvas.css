@@ -1,0 +1,206 @@
+/* 设计器节点/边的基础样式。盒子尺寸由组件按 NODE_SIZE 写死,这里只管外观。 */
+.fd-node {
+  position: relative;
+  box-sizing: border-box;
+  border: 2px solid #64748b;
+  background: #fff;
+  color: #1e293b;
+}
+.fd-node.selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+}
+.fd-circle {
+  border-radius: 50%;
+}
+.fd-end {
+  border-width: 3px;
+}
+.fd-between {
+  border-radius: 8px;
+}
+.fd-gateway {
+  border: none;
+  background: transparent;
+}
+.fd-gateway svg {
+  display: block;
+}
+.fd-gateway polygon {
+  fill: #fff;
+  stroke: #64748b;
+  stroke-width: 2;
+}
+.fd-gateway.selected polygon {
+  stroke: #2563eb;
+}
+.fd-gateway text {
+  font-size: 18px;
+  font-weight: 600;
+  fill: #64748b;
+}
+/* 句柄放大到 10px,6px 的默认值太难点中;中心位置不变。
+   默认隐身,悬停/选中的可连接节点才显形(老 LogicFlow 的锚点同样是 hover 出现),
+   拖线期间两端句柄保持可见;只读态节点没有 connectable 类,永不显示。
+   用 opacity 而不是 display:none —— xyflow 按句柄 DOM 的 bounds 判定落线,盒子必须留着。 */
+.fd-canvas .svelte-flow__handle {
+  width: 10px;
+  height: 10px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.fd-canvas .svelte-flow__node.connectable:hover .svelte-flow__handle,
+.fd-canvas .svelte-flow__node.connectable.selected .svelte-flow__handle,
+.fd-canvas .svelte-flow__handle.connectingfrom,
+.fd-canvas .svelte-flow__handle.connectingto {
+  opacity: 1;
+}
+.svelte-flow__edge-path.fd-skip {
+  stroke: #64748b;
+  stroke-width: 1.5;
+}
+.svelte-flow__edge.selected .svelte-flow__edge-path.fd-skip {
+  stroke: #2563eb;
+  stroke-width: 2;
+}
+.svelte-flow__edge-path.fd-skip-reject {
+  stroke-dasharray: 5 4;
+}
+.svelte-flow__edge-path.fd-skip-none {
+  stroke: #cbd5e1;
+}
+.fd-edge-label {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  font-size: 12px;
+  color: #374151;
+  cursor: grab;
+  user-select: none;
+}
+.fd-edge-label.selected {
+  border-color: #2563eb;
+}
+.fd-edge-label.fd-static {
+  cursor: default;
+}
+
+/* 实例流程图着色:三原色由 Canvas 以 CSS 变量注入(lib/flow/chart.ts),
+   定义态节点没有 status class,以下规则不生效 */
+.fd-canvas {
+  --fd-done: 56, 161, 105;
+  --fd-todo: 245, 158, 11;
+  --fd-notdone: 107, 114, 128;
+  height: 100%;
+  width: 100%;
+}
+.fd-node.fd-status-done {
+  border-color: rgb(var(--fd-done));
+  background: rgba(var(--fd-done), 0.08);
+}
+.fd-node.fd-status-todo {
+  border-color: rgb(var(--fd-todo));
+  border-style: dashed;
+  background: rgba(var(--fd-todo), 0.08);
+}
+.fd-node.fd-status-notdone {
+  border-color: rgb(var(--fd-notdone));
+}
+.dark .fd-node.fd-status-notdone {
+  background: rgba(var(--fd-notdone), 0.04);
+}
+.fd-gateway.fd-status-done polygon {
+  stroke: rgb(var(--fd-done));
+  fill: rgba(var(--fd-done), 0.08);
+}
+.fd-gateway.fd-status-todo polygon {
+  stroke: rgb(var(--fd-todo));
+  stroke-dasharray: 5 4;
+  fill: rgba(var(--fd-todo), 0.08);
+}
+.fd-gateway.fd-status-notdone polygon {
+  stroke: rgb(var(--fd-notdone));
+}
+.svelte-flow__edge-path.fd-status-done {
+  stroke: rgb(var(--fd-done));
+}
+.svelte-flow__edge-path.fd-status-todo {
+  stroke: rgb(var(--fd-todo));
+  stroke-dasharray: 5 4;
+}
+.svelte-flow__edge-path.fd-status-notdone {
+  stroke: rgb(var(--fd-notdone));
+}
+.fd-edge-label.fd-status-done {
+  border-color: rgb(var(--fd-done));
+}
+.fd-edge-label.fd-status-todo {
+  border-color: rgb(var(--fd-todo));
+}
+
+/* —— WP6:落线插入高亮、重连锚 —— */
+/* 面板拖入时鼠标压着的那条边:松手会插到这里 */
+.svelte-flow__edge-path.fd-skip.fd-drop-target {
+  stroke: #2563eb;
+  stroke-width: 3;
+}
+/* 重连锚:选中边两端的圆点,拖走即换端点。EdgeLabel 用 transform 定位,悬停只加光晕不动 transform */
+.fd-canvas .fd-reconnect-anchor {
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2px solid #2563eb;
+  background: #fff;
+  cursor: move;
+}
+.fd-canvas .fd-reconnect-anchor:hover {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+/* 左侧节点面板 */
+.fd-palette {
+  display: flex;
+  width: 128px;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 4px;
+  overflow: auto;
+  border-right: 1px solid var(--border, #e4e4e7);
+  padding: 8px;
+}
+.fd-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: grab;
+  user-select: none;
+}
+.fd-palette-item:hover {
+  background: var(--accent, #f1f5f9);
+}
+.fd-palette-item:active {
+  cursor: grabbing;
+}
+.fd-palette-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.fd-palette-icon rect,
+.fd-palette-icon circle,
+.fd-palette-icon polygon {
+  fill: #fff;
+  stroke: #64748b;
+  stroke-width: 2;
+}
+.fd-palette-icon circle.fd-palette-end {
+  stroke-width: 3;
+}
+.fd-palette-icon text {
+  font-size: 12px;
+  font-weight: 600;
+  fill: #64748b;
+}

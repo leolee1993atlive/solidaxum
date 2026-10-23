@@ -1,0 +1,26 @@
+[Unit]
+Description=@SVC_NAME@ service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+Group=@GROUP@
+WorkingDirectory=@PREFIX@
+ExecStart=@PREFIX@/@REPO_NAME@
+Restart=on-failure
+RestartSec=5
+
+# 安全加固
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=@PREFIX@/data @PREFIX@/logs
+PrivateTmp=true
+
+# 日志走 journald
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

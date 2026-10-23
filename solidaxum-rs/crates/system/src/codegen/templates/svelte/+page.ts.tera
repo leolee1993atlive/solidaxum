@@ -1,0 +1,4 @@
+// Generated Svelte page loader for {{ business_name }}
+export const load = async () => {
+  return {};
+};

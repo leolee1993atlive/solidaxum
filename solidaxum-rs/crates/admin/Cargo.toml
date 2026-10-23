@@ -1,0 +1,59 @@
+[package]
+name = "admin"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+
+[lib]
+name = "admin"
+path = "src/lib.rs"
+
+[[bin]]
+name = "solidaxum"
+path = "src/main.rs"
+
+[features]
+# 启用 HTTP 集成测试脚手架 (testkit + AuthMode::Test 的 test_auth 中间件)。
+# 仅供测试,不应在生产构建中启用。运行: cargo test -p admin --features test-util
+test-util = ["dep:tower", "dep:http-body-util"]
+
+[dependencies]
+app_core = { path = "../core" }
+system = { path = "../system" }
+monitor = { path = "../monitor" }
+flow = { path = "../flow" }
+# 装配:app.rs / testkit.rs 构造 DataSource(from_connection + with_resolver)
+app_data.workspace = true
+job.workspace = true
+anyhow.workspace = true
+axum.workspace = true
+tower-http.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender.workspace = true
+config.workspace = true
+deadpool-redis.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+redis.workspace = true
+uuid.workspace = true
+validator.workspace = true
+bcrypt.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+chrono.workspace = true
+# 交互式安装子命令(--write-config / --check-config)
+toml.workspace = true
+toml_edit.workspace = true
+percent-encoding.workspace = true
+rand.workspace = true
+# 仅在 test-util feature 下启用 (供 testkit 用 oneshot 驱动 Router)
+tower = { workspace = true, optional = true }
+http-body-util = { version = "0.1", optional = true }
+
+[dev-dependencies]
+base64.workspace = true
+# app-data 的测试脚手架(设计 9 节第 4 条):testkit 换轨后
+# sqlite_memory_conn / testkit 脚本面只经 dev-dependencies 启用。
+app_data = { workspace = true, features = ["test-util"] }

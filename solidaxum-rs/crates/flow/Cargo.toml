@@ -1,0 +1,30 @@
+[package]
+name = "flow"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+app_core = { path = "../core" }
+# 受限 re-export / 漏斗面
+app_data.workspace = true
+axum = { workspace = true, features = ["multipart"] }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+tracing.workspace = true
+rs-snowflake.workspace = true
+thiserror.workspace = true
+validator.workspace = true
+async-trait = "0.1"
+rhai = { version = "1.21", features = [] }
+regex.workspace = true
+rust-embed = "8"
+mime_guess = "2"
+
+[dev-dependencies]
+tokio.workspace = true
+# app-data 的测试脚手架(设计 9 节第 4 条):业务 crate 只经
+# dev-dependencies 启用 test-util。
+app_data = { workspace = true, features = ["test-util"] }

@@ -1,0 +1,5 @@
+error[E0599]: no method named `insert_unstamped` found for struct `DataContext<'a>` in the current scope
+  --> tests/compile_fail/no_insert_unstamped.rs:12:17
+   |
+12 |     let _ = ctx.insert_unstamped(am).await;
+   |                 ^^^^^^^^^^^^^^^^ method not found in `DataContext<'_>`

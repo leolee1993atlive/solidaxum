@@ -1,0 +1,39 @@
+error[E0277]: the trait bound `no_policy::Entity: DataPolicy` is not satisfied
+  --> tests/compile_fail/no_data_policy.rs:30:24
+   |
+30 |     let _ = ctx.select(no_policy::Entity::find()).all().await;
+   |                 ------ ^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |                 |
+   |                 required by a bound introduced by this call
+   |
+help: the trait `DataPolicy` is not implemented for `no_policy::Entity`
+  --> tests/compile_fail/no_data_policy.rs:16:43
+   |
+16 |     #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+   |                                           ^^^^^^^^^^^^^^^^^
+note: required by a bound in `DataContext::<'_>::select`
+  --> src/context.rs
+   |
+   |     pub fn select<E>(
+   |            ------ required by a bound in this associated function
+...
+   |         E: DataPolicy,
+   |            ^^^^^^^^^^ required by this bound in `DataContext::<'_>::select`
+   = note: this error originates in the derive macro `DeriveEntityModel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: the method `all` exists for struct `SelectQuery<'_, no_policy::Entity>`, but its trait bounds were not satisfied
+  --> tests/compile_fail/no_data_policy.rs:30:51
+   |
+16 |     #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+   |                                           ----------------- doesn't satisfy `no_policy::Entity: DataPolicy`
+...
+30 |     let _ = ctx.select(no_policy::Entity::find()).all().await;
+   |                                                   ^^^ method cannot be called on `SelectQuery<'_, no_policy::Entity>` due to unsatisfied trait bounds
+   |
+   = note: the following trait bounds were not satisfied:
+           `no_policy::Entity: DataPolicy`
+note: the trait `DataPolicy` must be implemented
+  --> src/policy.rs
+   |
+   | pub trait DataPolicy: EntityTrait
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

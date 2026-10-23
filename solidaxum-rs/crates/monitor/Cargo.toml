@@ -1,0 +1,30 @@
+[package]
+name = "monitor"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+app_core = { path = "../core" }
+system = { path = "../system" }
+app_data.workspace = true
+axum.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+redis.workspace = true
+deadpool-redis.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+futures.workspace = true
+tower.workspace = true
+bytes.workspace = true
+http.workspace = true
+validator.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+# app-data 的测试脚手架(设计 9 节第 4 条):sqlite 内存库建表/固定
+# resolver,与 system 测试同门。
+app_data = { workspace = true, features = ["test-util"] }

@@ -1,0 +1,13 @@
+[package]
+name = "dm-probe"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# 生产依赖必须关掉默认 feature —— 默认含 prompt,会拖入 winit 整套 GUI 栈,
+# 在无桌面的麒麟服务器上可能因缺 X11 开发库而编译失败。
+odbc-api = { version = "29.0.0", default-features = false, features = ["odbc_version_3_80"] }
+
+[features]
+# cargo run --features narrow  切窄字符重测(中文乱码时用)
+narrow = ["odbc-api/narrow"]

@@ -1,0 +1,9 @@
+<service>
+  <id>@SVC_NAME@</id>
+  <name>@SVC_NAME@</name>
+  <description>@REPO_NAME@ service</description>
+  <executable>@PREFIX@\@REPO_NAME@.exe</executable>
+  <workingdirectory>@PREFIX@</workingdirectory>
+  <onfailure action="restart" delay="5 sec"/>
+  <startmode>Manual</startmode>
+</service>

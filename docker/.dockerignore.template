@@ -1,0 +1,6 @@
+**
+!@REPO_NAME@/Cargo.toml
+!@REPO_NAME@/Cargo.lock
+!@REPO_NAME@/src/**
+!@REPO_NAME@/config.toml.example
+!@REPO_NAME@-ui/build/**

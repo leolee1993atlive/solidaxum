@@ -1,0 +1,22 @@
+-- 菜单 SQL
+-- 值域约定(Rust 消费语义): is_frame/is_cache 使用 0/1, 0=是 1=否
+--   is_frame='0' 表示是外链(地址必须以 http(s):// 开头), '1' 表示非外链
+--   is_cache='0' 表示缓存, '1' 表示不缓存
+insert into sys_menu (menu_id, menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_dept, create_by, create_time, update_by, update_time, remark)
+values({{ menu_ids[0] }}, '{{ function_name }}', {{ parent_menu_id }}, 1, '{{ business_name }}', '{{ module_name }}/{{ business_name }}', '1', '0', 'C', '0', '0', '{{ permission_prefix }}:list', '#', 1761000000000000103, 1761100000000000001, sysdate(), null, null, '{{ function_name }}菜单');
+
+-- 按钮 SQL
+insert into sys_menu (menu_id, menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_dept, create_by, create_time, update_by, update_time, remark)
+values({{ menu_ids[1] }}, '{{ function_name }}查询', {{ menu_ids[0] }}, 1, '#', '', '1', '0', 'F', '0', '0', '{{ permission_prefix }}:query', '#', 1761000000000000103, 1761100000000000001, sysdate(), null, null, '');
+
+insert into sys_menu (menu_id, menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_dept, create_by, create_time, update_by, update_time, remark)
+values({{ menu_ids[2] }}, '{{ function_name }}新增', {{ menu_ids[0] }}, 2, '#', '', '1', '0', 'F', '0', '0', '{{ permission_prefix }}:add', '#', 1761000000000000103, 1761100000000000001, sysdate(), null, null, '');
+
+insert into sys_menu (menu_id, menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_dept, create_by, create_time, update_by, update_time, remark)
+values({{ menu_ids[3] }}, '{{ function_name }}修改', {{ menu_ids[0] }}, 3, '#', '', '1', '0', 'F', '0', '0', '{{ permission_prefix }}:edit', '#', 1761000000000000103, 1761100000000000001, sysdate(), null, null, '');
+
+insert into sys_menu (menu_id, menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_dept, create_by, create_time, update_by, update_time, remark)
+values({{ menu_ids[4] }}, '{{ function_name }}删除', {{ menu_ids[0] }}, 4, '#', '', '1', '0', 'F', '0', '0', '{{ permission_prefix }}:remove', '#', 1761000000000000103, 1761100000000000001, sysdate(), null, null, '');
+
+insert into sys_menu (menu_id, menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_dept, create_by, create_time, update_by, update_time, remark)
+values({{ menu_ids[5] }}, '{{ function_name }}导出', {{ menu_ids[0] }}, 5, '#', '', '1', '0', 'F', '0', '0', '{{ permission_prefix }}:export', '#', 1761000000000000103, 1761100000000000001, sysdate(), null, null, '');

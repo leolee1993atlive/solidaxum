@@ -1,0 +1,29 @@
+[package]
+name = "job"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+app_core = { path = "../core" }
+app_data.workspace = true
+axum.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+tracing.workspace = true
+rs-snowflake.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+tokio-cron-scheduler.workspace = true
+deadpool-redis.workspace = true
+redis.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+# app-data 的测试脚手架(设计 9 节第 4 条):sqlite 内存库建表/固定
+# resolver/免盖章种子,与 monitor 测试同门。
+app_data = { workspace = true, features = ["test-util"] }

@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Rust backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: solidaxum-rs
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # crates/dm links against unixODBC (odbc-api), so test binaries need it.
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y unixodbc-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      # rustfmt.toml uses unstable options (imports_granularity, group_imports),
+      # so formatting must be checked with nightly.
+      - name: Install nightly rustfmt
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            solidaxum-rs/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('solidaxum-rs/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Format
+        run: cargo +nightly fmt --all --check
+
+      - name: Clippy
+        run: cargo +stable clippy --workspace --all-targets -- -D warnings
+
+      - name: Unit and repository tests
+        run: cargo +stable test --workspace
+
+      - name: HTTP contract tests
+        run: cargo +stable test -p admin --features test-util
+
+      - name: Architecture guards
+        working-directory: .
+        run: bash scripts/check-all-guards.sh
+
+  frontend:
+    name: Svelte frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: solidaxum-ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: solidaxum-ui/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check
+        run: pnpm check
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

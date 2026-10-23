@@ -1,0 +1,23 @@
+name: @REPO_NAME@@SVC_SUFFIX@
+services:
+  backend:
+    image: @REPO_NAME@@SVC_SUFFIX@:@VERSION@
+    container_name: @REPO_NAME@-backend@SVC_SUFFIX@
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config.toml:/app/config.toml:ro
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      RUST_LOG: info
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: @REPO_NAME@-redis@SVC_SUFFIX@
+    volumes:
+      - ./data/redis:/data
+    restart: unless-stopped

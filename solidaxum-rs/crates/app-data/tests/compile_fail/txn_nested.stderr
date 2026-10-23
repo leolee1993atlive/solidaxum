@@ -1,0 +1,5 @@
+error[E0599]: no method named `transaction` found for reference `&'a TxnContext<'a>` in the current scope
+ --> tests/compile_fail/txn_nested.rs:5:8
+  |
+5 |     tx.transaction(|_t| Box::pin(async { Ok::<(), app_data::DataError>(()) }));
+  |        ^^^^^^^^^^^ method not found in `&'a TxnContext<'a>`
