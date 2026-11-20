@@ -101,6 +101,15 @@ where
     /// 施加策略,返回可直接执行的 Select。吃掉 self —— 调用方再也拿不回
     /// 未施加策略的查询。
     async fn apply(self) -> Result<sea_orm::Select<E>, DataError> {
+        Ok(self.apply_with_scope().await?.0)
+    }
+
+    /// 与 [`Self::apply`] 同源,额外报告是否真的挂上了行级范围条件。
+    /// 分页的整表估算只对"行集就是整张表"成立,范围一旦施加就必须拒绝
+    /// (与 [`crate::context::ContextCore::page`] 的 `!scoped` 同口径)。
+    async fn apply_with_scope(
+        self,
+    ) -> Result<(sea_orm::Select<E>, bool), DataError> {
         apply_policy(self.core, self.sel, self.include_deleted, self.decl).await
     }
 
@@ -144,7 +153,7 @@ where
             ScopeDecl::None => Some(ScopeDecl::None),
             ScopeDecl::Via(_) => Option::None,
         };
-        let sel = self.apply().await?;
+        let (sel, row_scoped) = self.apply_with_scope().await?;
 
         let (total, total_capped) =
             crate::count::count_total(core, sel.clone().into_query(), mode)
@@ -152,11 +161,19 @@ where
         let paginator = sel.clone().paginate(core, paging.limit());
         let rows = paginator.fetch_page(paging.page() - 1).await?;
 
-        let total_approx = if total_capped {
-            approx_when_unfiltered(core, sel, include_deleted, baseline).await?
-        } else {
-            None
-        };
+        // 门控在 approx_when_unfiltered 内部(见该函数的早退):调用侧
+        // 无条件调用,无法用 if 跳过。行级范围一旦施加,目录估算(不认
+        // WHERE)给的是整表行数,与本次结果集无关 —— 必须抑制。
+        // 窄 API(`ContextCore::page`)的 `!scoped` 同口径。
+        let total_approx = approx_when_unfiltered(
+            core,
+            sel,
+            include_deleted,
+            baseline,
+            total_capped,
+            row_scoped,
+        )
+        .await?;
 
         Ok(Page {
             rows,
@@ -199,7 +216,7 @@ async fn apply_policy<E>(
     mut sel: sea_orm::Select<E>,
     include_deleted: bool,
     decl: ScopeDecl,
-) -> Result<sea_orm::Select<E>, DataError>
+) -> Result<(sea_orm::Select<E>, bool), DataError>
 where
     E: DataPolicy,
 {
@@ -207,6 +224,10 @@ where
     if !include_deleted && let Some((col, alive)) = E::soft_delete() {
         sel = sel.filter(col.eq(alive));
     }
+    // 行级范围是否真的合成出条件(ScopeFilter::All → 否)。分页估算的
+    // 抑制判据;软删除不算 —— 它不改变"是不是整张表"的语义(目录估算
+    // 同样按整表算)。
+    let mut row_scoped = false;
     // 行级范围三态。
     //
     // ScopeFilter **只在真正要用的两条分支里解析** —— 与 find_by_id / page
@@ -219,6 +240,7 @@ where
             let (d, o) = (E::dept_column(), E::owner_column());
             if let Some(c) = scope_condition(d, o, &sf)? {
                 sel = sel.filter(c);
+                row_scoped = true;
             }
         }
         ScopeDecl::Driver => {
@@ -253,11 +275,25 @@ where
             let sf = core.scope_filter().await?.clone();
             if let Some(c) = f(&sf)? {
                 sel = sel.filter(c);
+                row_scoped = true;
             }
         }
         ScopeDecl::None => {}
     }
-    Ok(sel)
+    Ok((sel, row_scoped))
+}
+
+/// 是否允许进入表级估算的**基线比对**(真正的用户过滤条件由下游
+/// `row_set_key` 再判一次)。目录估算不认 WHERE,只有"计数触顶 +
+/// 未施加行级范围 + 有可重建基线"三者同时成立时,查询的行集才可能
+/// 等于整张表。抽成纯函数只为把谓词语义钉在真值表上;门控本身在
+/// [`approx_when_unfiltered`] 内部早退,调用侧无法用 if 跳过。
+fn should_estimate(
+    total_capped: bool,
+    row_scoped: bool,
+    baseline_available: bool,
+) -> bool {
+    total_capped && !row_scoped && baseline_available
 }
 
 /// 计数触顶后,决定要不要给表级估算行数。
@@ -265,14 +301,21 @@ where
 /// 判据是**这个查询选出的行集是否就是整张表**(去掉软删除后)。目录估算不认
 /// WHERE,查询一旦带了条件或行级范围,整表的数就跟本次结果无关,给了是误导。
 ///
-/// 判定方式不是让调用方声明(声明就会有人忘、忘了不报错),而是**把同样的策略
-/// 施加在一个空查询上,拿两边的行集指纹比对**:`Statement` 的 PartialEq 覆盖
-/// SQL 文本与绑定值,逐位相等才算"没加条件"。任何不确定的情形一律不给估算。
+/// **门控在本函数内部**(`should_estimate` 早退),不在调用侧 ——
+/// `SelectQuery::page` 无条件调用,无法用一个 `if` 跳过抑制。要绕过只能
+/// 改本函数内部的门控或调用点传入的 `total_capped`/`row_scoped`。
+///
+/// 过了门控之后,判定方式不是让调用方声明(声明就会有人忘、忘了不报错),
+/// 而是**把同样的策略施加在一个空查询上,拿两边的行集指纹比对**:
+/// `Statement` 的 PartialEq 覆盖 SQL 文本与绑定值,逐位相等才算"没加条件"。
+/// 任何不确定的情形一律不给估算。
 async fn approx_when_unfiltered<E>(
     core: &ContextCore<'_>,
     sel: sea_orm::Select<E>,
     include_deleted: bool,
     baseline: Option<ScopeDecl>,
+    total_capped: bool,
+    row_scoped: bool,
 ) -> Result<Option<i64>, DataError>
 where
     E: DataPolicy,
@@ -280,11 +323,15 @@ where
     use sea_orm::ConnectionTrait;
 
     use crate::sea_orm::QueryTrait;
+    let baseline_available = baseline.is_some();
+    if !should_estimate(total_capped, row_scoped, baseline_available) {
+        return Ok(None);
+    }
     let Some(decl) = baseline else {
         return Ok(None);
     };
     let backend = core.get_database_backend();
-    let base =
+    let (base, _) =
         apply_policy::<E>(core, E::find(), include_deleted, decl).await?;
     // scope_filter 在 core 里是 OnceCell 缓存的,这第二遍不会再查一次库。
     if crate::count::row_set_key(backend, base.into_query())
@@ -293,4 +340,90 @@ where
         return Ok(None);
     }
     crate::count::approx_row_count(core, E::default().table_name()).await
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::{
+        principal::{Principal, ScopeFilter},
+        sea_orm::EntityTrait,
+        testing::{self, FixedResolver, sandbox},
+    };
+
+    use super::{ScopeDecl, apply_policy, should_estimate};
+
+    /// 谓词语义锚:三个条件按真值表组合。谓词里的 `!row_scoped`(或
+    /// `baseline_available`)被去掉,对应行就会从 false 变 true,本测试即失败。
+    ///
+    /// 本测试**不证明 `page` 的接线**:它只钉谓词语义。真正的抑制门控
+    /// 位于 [`approx_when_unfiltered`](super::approx_when_unfiltered) 内部早退,
+    /// `page` 侧无条件调用;
+    /// SQLite 无统计目录,端到端也无法观察估算值。
+    #[test]
+    fn should_estimate_truth_table() {
+        // capped + scoped:整表估算与结果集无关 → 禁止
+        assert!(!should_estimate(true, true, true));
+        assert!(!should_estimate(true, true, false));
+        // capped + 未施加范围 + 有基线 → 允许(All/unscoped 的路径)
+        assert!(should_estimate(true, false, true));
+        // 未触顶:total 已是精确值 → 不需要估算
+        assert!(!should_estimate(false, false, true));
+        // 无基线(如 Via 的 FnOnce 无法重建)→ 禁止
+        assert!(!should_estimate(true, false, false));
+    }
+
+    /// 回归锚:分页的整表估算抑制判据是"是否真的挂上了行级范围"。
+    /// 受辖实体 + DeptIn 必须报 true;All / 显式豁免报 false。
+    ///
+    /// 为什么不直接断 `total_approx` —— SQLite 没有统计目录,
+    /// `approx_row_count` 对任何查询都返回 None,`page()` 的端到端断言
+    /// 区分不出"抑制了"与"问过但退化成 None"(见 context.rs 的
+    /// `escape_hatch_scoped_page_has_no_whole_table_approx`)。
+    #[tokio::test]
+    async fn apply_policy_reports_row_scope_only_when_condition_attached() {
+        let ds = testing::sqlite_memory().await;
+        let principal = Principal {
+            user_id: 1,
+            dept_id: Some(10),
+        };
+
+        let dept_in = ds.derive_with_resolver(Arc::new(FixedResolver(
+            ScopeFilter::DeptIn(vec![10]),
+        )));
+        let ctx = dept_in.context(principal.clone());
+        let (_, row_scoped) = apply_policy(
+            ctx.core(),
+            sandbox::Entity::find(),
+            false,
+            ScopeDecl::Driver,
+        )
+        .await
+        .unwrap();
+        assert!(row_scoped, "DeptIn 必须报告已施加行级范围(估算须抑制)");
+
+        let all =
+            ds.derive_with_resolver(Arc::new(FixedResolver(ScopeFilter::All)));
+        let ctx = all.context(principal);
+        let (_, row_scoped) = apply_policy(
+            ctx.core(),
+            sandbox::Entity::find(),
+            false,
+            ScopeDecl::Driver,
+        )
+        .await
+        .unwrap();
+        assert!(!row_scoped, "All 不挂范围条件,整表估算仍可用");
+
+        let (_, row_scoped) = apply_policy(
+            ctx.core(),
+            sandbox::Entity::find(),
+            false,
+            ScopeDecl::None,
+        )
+        .await
+        .unwrap();
+        assert!(!row_scoped, "显式豁免不施加范围");
+    }
 }
