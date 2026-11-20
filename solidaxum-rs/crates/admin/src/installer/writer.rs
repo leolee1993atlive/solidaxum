@@ -176,7 +176,7 @@ fn restrict_key_permissions(key: &Path) {
 // ────────── 首次渲染 ──────────
 
 /// 从内嵌模板渲染出完整 config.toml(含随机生成的密钥)。
-pub fn render_fresh(
+pub(crate) fn render_fresh(
     answers: &Answers,
     https: &EffectiveHttps,
 ) -> anyhow::Result<String> {
