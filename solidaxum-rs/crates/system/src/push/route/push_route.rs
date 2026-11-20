@@ -6,7 +6,10 @@ use axum::{
 };
 
 use crate::{
-    app::AppState, push::handler::channel_config_handler as ch,
+    app::AppState,
+    push::handler::{
+        channel_config_handler as ch, message_log_handler as log,
+    },
     push::sse::sse_handler,
 };
 
@@ -20,4 +23,6 @@ pub fn push_route() -> Router<Arc<AppState>> {
             "/system/messageChannel/{channel}/test",
             post(ch::test_channel),
         )
+        // 发送历史(全局审计流水,只读)
+        .route("/system/messageLog/list", get(log::list_send_logs))
 }
