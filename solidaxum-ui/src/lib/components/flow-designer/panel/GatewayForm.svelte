@@ -23,21 +23,24 @@
   }
 </script>
 
-<NodeCommonForm {store} {node} {readonly} />
+<section class="fd-section">
+  <h3 class="fd-section-title">基础配置</h3>
+  <NodeCommonForm {store} {node} {readonly} />
+</section>
 
-<div class="mt-4">
-  <div class="text-muted-foreground mb-1 text-xs">出线({outEdges.length})</div>
+<section class="fd-section">
+  <h3 class="fd-section-title">出线({outEdges.length})</h3>
   {#if outEdges.length === 0}
     <div class="text-muted-foreground text-sm">
       还没有出线,从菱形的句柄拖出去连到下一节点
     </div>
   {:else}
-    <ul class="divide-y rounded-md border">
+    <ul class="fd-row-list divide-y rounded-md border">
       {#each outEdges as e (e.id)}
         <li>
           <button
             type="button"
-            class="hover:bg-muted flex w-full flex-col items-start px-2 py-1.5 text-left text-sm"
+            class="flex w-full flex-col items-start px-2 py-1.5 text-left text-sm"
             onclick={() => store.selectEdge(e.id)}
           >
             <span class="font-medium">{e.data.json.skipName || '(未命名)'}</span
@@ -50,4 +53,4 @@
       {/each}
     </ul>
   {/if}
-</div>
+</section>

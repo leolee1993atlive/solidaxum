@@ -3,8 +3,10 @@
   position: relative;
   box-sizing: border-box;
   border: 2px solid #64748b;
-  background: #fff;
-  color: #1e293b;
+  background: var(--card, #fff);
+  color: var(--foreground, #1e293b);
+  /* warm-flow 1.8.9 阴影柔化:透明度 0.05 / 0.025 */
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.025);
 }
 .fd-node.selected {
   border-color: #2563eb;
@@ -12,12 +14,59 @@
 }
 .fd-circle {
   border-radius: 50%;
+  border-color: rgb(var(--fd-start));
+  /* 外发光:start.js 的光晕圆 rgba(色,0.07) */
+  box-shadow: 0 0 0 5px rgba(var(--fd-start), 0.07);
+}
+/* 内核实心点:start.js start-core 径向渐变,直径约 60% 居中 */
+.fd-circle::after {
+  content: '';
+  position: absolute;
+  inset: 20%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    rgba(var(--fd-start), 0.9),
+    rgba(var(--fd-start), 0.15) 70%
+  );
+  pointer-events: none;
 }
 .fd-end {
   border-width: 3px;
+  border-color: rgb(var(--fd-end));
+  box-shadow: 0 0 0 4px rgba(var(--fd-end), 0.04);
+}
+/* 细内环:end.js 的 r*0.72 装饰环,inset 约 6px;覆盖 .fd-circle::after 的内核 */
+.fd-end::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(var(--fd-end), 0.25);
+  border-radius: 50%;
+  background: none;
+  pointer-events: none;
 }
 .fd-between {
   border-radius: 8px;
+  border-color: rgb(var(--fd-between));
+  border-width: 1.5px;
+}
+/* 顶部光泽条:between.js 的 card-top 渐变(高 18%,圆角裁剪,不占布局) */
+.fd-between::before {
+  content: '';
+  position: absolute;
+  left: 1.5px;
+  right: 1.5px;
+  top: 1.5px;
+  height: 18%;
+  border-radius: 6.5px 6.5px 0 0;
+  background: linear-gradient(
+    to right,
+    rgba(var(--fd-between), 0.12),
+    rgba(var(--fd-between), 0.03) 50%,
+    rgba(255, 255, 255, 0)
+  );
+  pointer-events: none;
 }
 .fd-gateway {
   border: none;
@@ -27,17 +76,12 @@
   display: block;
 }
 .fd-gateway polygon {
-  fill: #fff;
+  fill: var(--card, #fff);
   stroke: #64748b;
   stroke-width: 2;
 }
 .fd-gateway.selected polygon {
   stroke: #2563eb;
-}
-.fd-gateway text {
-  font-size: 18px;
-  font-weight: 600;
-  fill: #64748b;
 }
 /* 句柄放大到 10px,6px 的默认值太难点中;中心位置不变。
    默认隐身,悬停/选中的可连接节点才显形(老 LogicFlow 的锚点同样是 hover 出现),
@@ -56,7 +100,7 @@
   opacity: 1;
 }
 .svelte-flow__edge-path.fd-skip {
-  stroke: #64748b;
+  stroke: #94a3b8;
   stroke-width: 1.5;
 }
 .svelte-flow__edge.selected .svelte-flow__edge-path.fd-skip {
@@ -72,10 +116,10 @@
 .fd-edge-label {
   padding: 2px 8px;
   border-radius: 999px;
-  background: #fff;
-  border: 1px solid #cbd5e1;
+  background: var(--card, #fff);
+  border: 1px solid #e2e8f0;
   font-size: 12px;
-  color: #374151;
+  color: var(--foreground, #374151);
   cursor: grab;
   user-select: none;
 }
@@ -86,12 +130,107 @@
   cursor: default;
 }
 
+/* —— 设计态语义色(warm-flow 1.8.9 视觉移植)——
+   节点六色定义态着色见上方 .fd-circle/.fd-end/.fd-between(实例流程图的
+   fd-status-* 规则在文件后部,同特异性时状态优先);
+   底色/文字走 --card/--foreground 主题变量,暗色模式自动切换。 */
+/* between 左上角审批图标(照 between.js getIconShape 转写,26×26 绝对定位不占布局) */
+.fd-between-icon {
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  width: 26px;
+  height: 26px;
+  color: rgb(var(--fd-between));
+  pointer-events: none;
+}
+.fd-between-icon .fd-icon-card {
+  fill: rgba(var(--fd-between), 0.08);
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+.fd-between-icon .fd-icon-badge {
+  fill: rgba(var(--fd-between), 0.15);
+  stroke: currentColor;
+  stroke-width: 1;
+}
+.fd-between-icon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+.fd-between-icon .fd-icon-line {
+  stroke: rgba(var(--fd-between), 0.25);
+  stroke-width: 1;
+}
+.dark .fd-between-icon .fd-icon-card {
+  fill: rgba(var(--fd-between), 0.15);
+}
+.dark .fd-between-icon .fd-icon-badge {
+  fill: rgba(var(--fd-between), 0.25);
+}
+.dark .fd-between-icon .fd-icon-line {
+  stroke: rgba(var(--fd-between), 0.4);
+}
+/* 暗色下定义态卡片用淡语义底;fd-status-* 节点靠 :not 排除,状态底色不受影响 */
+.dark .fd-node.fd-between:not([class*='fd-status']) {
+  background: rgba(var(--fd-between), 0.07);
+}
+
+/* 网关符号着色:glyph 从旧 <text> 改为 path/circle 组合,随 currentColor 走语义色 */
+.fd-gateway .fd-glyph path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+.fd-gateway .fd-glyph circle {
+  stroke: currentColor;
+}
+.fd-gateway .fd-glyph .fd-glyph-disc {
+  fill: currentColor;
+  fill-opacity: 0.15;
+}
+.fd-gateway .fd-glyph .fd-glyph-dot {
+  fill: currentColor;
+  stroke: none;
+}
+.fd-gateway.fd-serial {
+  color: rgb(var(--fd-serial));
+}
+.fd-gateway.fd-serial polygon {
+  fill: rgba(var(--fd-serial), 0.06);
+  stroke: rgb(var(--fd-serial));
+}
+.fd-gateway.fd-parallel {
+  color: rgb(var(--fd-parallel));
+}
+.fd-gateway.fd-parallel polygon {
+  fill: rgba(var(--fd-parallel), 0.06);
+  stroke: rgb(var(--fd-parallel));
+}
+.fd-gateway.fd-inclusive {
+  color: rgb(var(--fd-inclusive));
+}
+.fd-gateway.fd-inclusive polygon {
+  fill: rgba(var(--fd-inclusive), 0.06);
+  stroke: rgb(var(--fd-inclusive));
+}
+
 /* 实例流程图着色:三原色由 Canvas 以 CSS 变量注入(lib/flow/chart.ts),
    定义态节点没有 status class,以下规则不生效 */
 .fd-canvas {
   --fd-done: 56, 161, 105;
   --fd-todo: 245, 158, 11;
   --fd-notdone: 107, 114, 128;
+  /* 设计态语义六色(warm-flow 1.8.9 applyClassicDesignColor)+ 选中强调色 */
+  --fd-start: 103, 194, 58;
+  --fd-between: 64, 158, 255;
+  --fd-end: 245, 108, 108;
+  --fd-serial: 245, 158, 11;
+  --fd-parallel: 19, 194, 194;
+  --fd-inclusive: 146, 84, 222;
+  --fd-accent: 37, 99, 235;
   height: 100%;
   width: 100%;
 }
@@ -189,18 +328,78 @@
   height: 28px;
   flex-shrink: 0;
 }
-.fd-palette-icon rect,
-.fd-palette-icon circle,
-.fd-palette-icon polygon {
-  fill: #fff;
+/* 外轮廓基色;per-kind 类覆盖为语义色(侧栏不在 .fd-canvas 内,用字面量同色) */
+.fd-palette-icon .fd-palette-shape {
+  fill: var(--card, #fff);
   stroke: #64748b;
   stroke-width: 2;
 }
-.fd-palette-icon circle.fd-palette-end {
-  stroke-width: 3;
+.fd-palette-icon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
 }
-.fd-palette-icon text {
-  font-size: 12px;
-  font-weight: 600;
-  fill: #64748b;
+.fd-palette-icon.fd-palette-start {
+  color: rgb(103, 194, 58);
+}
+.fd-palette-icon.fd-palette-start .fd-palette-shape {
+  stroke: rgb(103, 194, 58);
+}
+.fd-palette-icon.fd-palette-start .fd-palette-core {
+  fill: rgba(103, 194, 58, 0.45);
+  stroke: none;
+}
+.fd-palette-icon.fd-palette-between {
+  color: rgb(64, 158, 255);
+}
+.fd-palette-icon.fd-palette-between .fd-palette-shape {
+  stroke: rgb(64, 158, 255);
+  stroke-width: 1.5;
+}
+.fd-palette-icon.fd-palette-between .fd-palette-mini rect {
+  fill: rgba(64, 158, 255, 0.08);
+  stroke: currentColor;
+  stroke-width: 1;
+}
+.fd-palette-icon.fd-palette-between .fd-palette-mini circle {
+  fill: rgba(64, 158, 255, 0.15);
+  stroke: currentColor;
+  stroke-width: 0.8;
+}
+.fd-palette-icon.fd-palette-between .fd-palette-mini path {
+  stroke-width: 1.2;
+}
+.fd-palette-icon.fd-palette-end {
+  color: rgb(245, 108, 108);
+}
+.fd-palette-icon.fd-palette-end .fd-palette-shape {
+  stroke: rgb(245, 108, 108);
+  stroke-width: 2.5;
+}
+.fd-palette-icon.fd-palette-end .fd-palette-ring {
+  fill: none;
+  stroke: rgba(245, 108, 108, 0.25);
+  stroke-width: 1;
+}
+.fd-palette-icon.fd-palette-serial {
+  color: rgb(245, 158, 11);
+}
+.fd-palette-icon.fd-palette-serial .fd-palette-shape {
+  stroke: rgb(245, 158, 11);
+  fill: #fffbeb;
+}
+.fd-palette-icon.fd-palette-parallel {
+  color: rgb(19, 194, 194);
+}
+.fd-palette-icon.fd-palette-parallel .fd-palette-shape {
+  stroke: rgb(19, 194, 194);
+  fill: #ecfeff;
+}
+.fd-palette-icon.fd-palette-inclusive {
+  color: rgb(146, 84, 222);
+}
+.fd-palette-icon.fd-palette-inclusive .fd-palette-shape {
+  stroke: rgb(146, 84, 222);
+  fill: #faf5ff;
 }

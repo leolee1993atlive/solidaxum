@@ -361,6 +361,9 @@ impl ContextCore<'_> {
 
         // 触顶了才去问目录,且只在"除软删除外没有别的条件"时问 ——
         // 有用户条件或行级范围时,整表估算与本次查询无关,给了就是误导。
+        // 与逃生舱的 `select_builder::should_estimate` 同口径(那边把
+        // "无用户条件"交给下游 row_set_key,门控在 approx_when_unfiltered
+        // 内部);两处规则变动需同步,防止窄 API / 逃生舱分叉。
         let total_approx = if total_capped && !user_filtered && !scoped {
             crate::count::approx_row_count(self, E::default().table_name())
                 .await?
@@ -1971,6 +1974,39 @@ mod tests {
             .unwrap();
         assert!(p.total_capped);
         assert_eq!(p.total_approx, None);
+    }
+
+    /// 受辖实体(DeptIn)在逃生舱分页触顶时不得回落到整表目录估算:
+    /// 目录估算不认 WHERE,一旦范围施加,它给的就是未过滤的整表行数
+    /// (泄漏)。
+    ///
+    /// **本测试不能证明抑制门控**:SQLite 无统计目录,`total_approx`
+    /// 恒为 None —— 删掉抑制逻辑它照样通过。门控在
+    /// `select_builder::approx_when_unfiltered` 内部早退(`should_estimate`
+    /// 谓词语义另由真值表钉住),这里只记录字段在受辖触顶场景下的端到端取值。
+    #[tokio::test]
+    async fn escape_hatch_scoped_page_has_no_whole_table_approx() {
+        use testing::{FixedResolver, seed};
+        let ds = testing::sqlite_memory().await;
+        let rows: Vec<(i64, i64, i64, &str)> =
+            (1..=25).map(|i| (i, 10, 1, "0")).collect();
+        seed(&ds, rows).await;
+        seed(&ds, vec![(100, 99, 2, "0")]).await; // 越权部门
+        let ds = ds.with_resolver(Arc::new(FixedResolver(
+            ScopeFilter::DeptIn(vec![10]),
+        )));
+        let ctx = ds.context(Principal {
+            user_id: 1,
+            dept_id: Some(10),
+        });
+        let p = ctx
+            .select(testing::sandbox::Entity::find())
+            .total_cap(10)
+            .page(1, 5)
+            .await
+            .unwrap();
+        assert!(p.total_capped, "10 行上限被 25 行可见集触顶");
+        assert_eq!(p.total_approx, None, "受辖查询不得回落到整表目录估算");
     }
 
     /// 逃生舱分页(设计 6.4 ORDER BY 裁定):排序在 Select 构件上,

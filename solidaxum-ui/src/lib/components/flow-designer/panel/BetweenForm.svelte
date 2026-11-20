@@ -88,141 +88,160 @@
   </Tabs.List>
 
   <Tabs.Content value="base" class="space-y-4">
-    <NodeCommonForm {store} {node} {readonly} />
+    <section class="fd-section">
+      <h3 class="fd-section-title">基础配置</h3>
+      <div class="space-y-4">
+        <NodeCommonForm {store} {node} {readonly} />
+      </div>
+    </section>
 
-    <Field.Field>
-      <Field.Label>协作方式</Field.Label>
-      <RadioGroup.Root
-        value={ratio.way}
-        disabled={readonly}
-        onValueChange={(v) => writeRatio(ratioForWay(v as CollaborativeWay))}
-        class="flex gap-4"
-      >
-        <div class="flex items-center gap-2">
-          <RadioGroup.Item value="1" id="fd-way-1" />
-          <Label for="fd-way-1" class="font-normal" title="只需一个人审批"
-            >或签</Label
-          >
-        </div>
-        <div class="flex items-center gap-2">
-          <RadioGroup.Item value="2" id="fd-way-2" />
-          <Label
-            for="fd-way-2"
-            class="font-normal"
-            title="部分办理人审批,建议选用户">票签</Label
-          >
-        </div>
-        <div class="flex items-center gap-2">
-          <RadioGroup.Item value="3" id="fd-way-3" />
-          <Label
-            for="fd-way-3"
-            class="font-normal"
-            title="所有办理人都要审批,建议选用户">会签</Label
-          >
-        </div>
-      </RadioGroup.Root>
-    </Field.Field>
-
-    {#if ratio.way === '2'}
-      <Field.Field>
-        <Field.Label for="fd-ratio-value">票签策略</Field.Label>
-        <div class="flex gap-2">
-          <Select.Root
-            type="single"
-            value={ratio.type}
+    <section class="fd-section">
+      <h3 class="fd-section-title">审批配置</h3>
+      <div class="space-y-4">
+        <Field.Field>
+          <Field.Label>协作方式</Field.Label>
+          <RadioGroup.Root
+            value={ratio.way}
             disabled={readonly}
             onValueChange={(v) =>
-              writeRatio({ ...ratio, type: v as RatioType, value: '' })}
+              writeRatio(ratioForWay(v as CollaborativeWay))}
+            class="flex gap-4"
           >
-            <Select.Trigger class="w-32 shrink-0" aria-label="策略类型">
-              {labelOf(ratioTypeOptions, ratio.type)}
+            <div class="flex items-center gap-2">
+              <RadioGroup.Item value="1" id="fd-way-1" />
+              <Label for="fd-way-1" class="font-normal" title="只需一个人审批"
+                >或签</Label
+              >
+            </div>
+            <div class="flex items-center gap-2">
+              <RadioGroup.Item value="2" id="fd-way-2" />
+              <Label
+                for="fd-way-2"
+                class="font-normal"
+                title="部分办理人审批,建议选用户">票签</Label
+              >
+            </div>
+            <div class="flex items-center gap-2">
+              <RadioGroup.Item value="3" id="fd-way-3" />
+              <Label
+                for="fd-way-3"
+                class="font-normal"
+                title="所有办理人都要审批,建议选用户">会签</Label
+              >
+            </div>
+          </RadioGroup.Root>
+        </Field.Field>
+
+        {#if ratio.way === '2'}
+          <Field.Field>
+            <Field.Label for="fd-ratio-value">票签策略</Field.Label>
+            <div class="flex gap-2">
+              <Select.Root
+                type="single"
+                value={ratio.type}
+                disabled={readonly}
+                onValueChange={(v) =>
+                  writeRatio({ ...ratio, type: v as RatioType, value: '' })}
+              >
+                <Select.Trigger class="w-32 shrink-0" aria-label="策略类型">
+                  {labelOf(ratioTypeOptions, ratio.type)}
+                </Select.Trigger>
+                <Select.Content>
+                  {#each ratioTypeOptions as o (o.value)}
+                    <Select.Item value={o.value} label={o.label} />
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+              <Input
+                id="fd-ratio-value"
+                class="min-w-0 flex-1"
+                placeholder={ratioPlaceholder}
+                value={ratio.value}
+                disabled={readonly}
+                oninput={(e) =>
+                  writeRatio({ ...ratio, value: e.currentTarget.value })}
+              />
+            </div>
+            {#if ratioError}<Field.Error>{ratioError}</Field.Error>{/if}
+          </Field.Field>
+        {/if}
+
+        <Field.Field>
+          <Field.Label for="fd-any-skip">驳回到指定节点</Field.Label>
+          <Select.Root
+            type="single"
+            value={json.anyNodeSkip ?? NO_SKIP}
+            disabled={readonly}
+            onValueChange={(v) =>
+              store.updateNodeJson(node.id, {
+                anyNodeSkip: v === NO_SKIP ? null : v,
+              })}
+          >
+            <Select.Trigger id="fd-any-skip" class="w-full">
+              {labelOf(rejectOptions, json.anyNodeSkip ?? NO_SKIP)}
             </Select.Trigger>
             <Select.Content>
-              {#each ratioTypeOptions as o (o.value)}
+              {#each rejectOptions as o (o.value)}
                 <Select.Item value={o.value} label={o.label} />
               {/each}
             </Select.Content>
           </Select.Root>
+          {#if ratio.way === '2'}
+            <Field.Description>票签建议指定驳回节点</Field.Description>
+          {/if}
+        </Field.Field>
+
+        <Field.Field>
+          <Field.Label>表单</Field.Label>
+          <RadioGroup.Root
+            value={json.formCustom === 'Y' ? 'Y' : 'N'}
+            disabled={readonly}
+            onValueChange={(v) =>
+              store.updateNodeJson(node.id, { formCustom: v })}
+            class="flex gap-4"
+          >
+            <div class="flex items-center gap-2">
+              <RadioGroup.Item value="N" id="fd-form-n" />
+              <Label for="fd-form-n" class="font-normal">路径表单</Label>
+            </div>
+            <div class="flex items-center gap-2">
+              <RadioGroup.Item value="Y" id="fd-form-y" />
+              <Label for="fd-form-y" class="font-normal">自定义表单</Label>
+            </div>
+          </RadioGroup.Root>
           <Input
-            id="fd-ratio-value"
-            class="min-w-0 flex-1"
-            placeholder={ratioPlaceholder}
-            value={ratio.value}
+            aria-label={json.formCustom === 'Y' ? '表单唯一标识' : '表单路径'}
+            placeholder={json.formCustom === 'Y'
+              ? '表单唯一标识'
+              : '表单路径,如 /workflow/leaveEdit/index'}
+            value={json.formPath ?? ''}
             disabled={readonly}
             oninput={(e) =>
-              writeRatio({ ...ratio, value: e.currentTarget.value })}
+              store.updateNodeJson(node.id, {
+                formPath: e.currentTarget.value || null,
+              })}
           />
-        </div>
-        {#if ratioError}<Field.Error>{ratioError}</Field.Error>{/if}
-      </Field.Field>
-    {/if}
-
-    <Field.Field>
-      <Field.Label for="fd-any-skip">驳回到指定节点</Field.Label>
-      <Select.Root
-        type="single"
-        value={json.anyNodeSkip ?? NO_SKIP}
-        disabled={readonly}
-        onValueChange={(v) =>
-          store.updateNodeJson(node.id, {
-            anyNodeSkip: v === NO_SKIP ? null : v,
-          })}
-      >
-        <Select.Trigger id="fd-any-skip" class="w-full">
-          {labelOf(rejectOptions, json.anyNodeSkip ?? NO_SKIP)}
-        </Select.Trigger>
-        <Select.Content>
-          {#each rejectOptions as o (o.value)}
-            <Select.Item value={o.value} label={o.label} />
-          {/each}
-        </Select.Content>
-      </Select.Root>
-      {#if ratio.way === '2'}
-        <Field.Description>票签建议指定驳回节点</Field.Description>
-      {/if}
-    </Field.Field>
-
-    <Field.Field>
-      <Field.Label>表单</Field.Label>
-      <RadioGroup.Root
-        value={json.formCustom === 'Y' ? 'Y' : 'N'}
-        disabled={readonly}
-        onValueChange={(v) => store.updateNodeJson(node.id, { formCustom: v })}
-        class="flex gap-4"
-      >
-        <div class="flex items-center gap-2">
-          <RadioGroup.Item value="N" id="fd-form-n" />
-          <Label for="fd-form-n" class="font-normal">路径表单</Label>
-        </div>
-        <div class="flex items-center gap-2">
-          <RadioGroup.Item value="Y" id="fd-form-y" />
-          <Label for="fd-form-y" class="font-normal">自定义表单</Label>
-        </div>
-      </RadioGroup.Root>
-      <Input
-        aria-label={json.formCustom === 'Y' ? '表单唯一标识' : '表单路径'}
-        placeholder={json.formCustom === 'Y'
-          ? '表单唯一标识'
-          : '表单路径,如 /workflow/leaveEdit/index'}
-        value={json.formPath ?? ''}
-        disabled={readonly}
-        oninput={(e) =>
-          store.updateNodeJson(node.id, {
-            formPath: e.currentTarget.value || null,
-          })}
-      />
-    </Field.Field>
+        </Field.Field>
+      </div>
+    </section>
   </Tabs.Content>
 
   <Tabs.Content value="handler">
-    <HandlerList {store} {node} {readonly} />
+    <section class="fd-section">
+      <h3 class="fd-section-title">办理人配置</h3>
+      <HandlerList {store} {node} {readonly} />
+    </section>
   </Tabs.Content>
 
   <Tabs.Content value="listener">
-    <ListenerRows
-      rows={listenerRows}
-      {readonly}
-      onChange={(next) => store.updateNodeJson(node.id, formatListeners(next))}
-    />
+    <section class="fd-section">
+      <h3 class="fd-section-title">监听器配置</h3>
+      <ListenerRows
+        rows={listenerRows}
+        {readonly}
+        onChange={(next) =>
+          store.updateNodeJson(node.id, formatListeners(next))}
+      />
+    </section>
   </Tabs.Content>
 </Tabs.Root>

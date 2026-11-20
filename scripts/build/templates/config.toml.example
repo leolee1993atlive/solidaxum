@@ -1,6 +1,6 @@
 [server]
 port = 3000
-host = "localhost"
+host = "0.0.0.0"
 # static_dir = "./static"  # Enables static SPA hosting
 
 # db_type: mysql | postgres | sqlite | dm(达梦 DM8,走 ODBC)

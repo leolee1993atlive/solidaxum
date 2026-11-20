@@ -55,21 +55,70 @@
         }
       }}
     >
-      <svg class="fd-palette-icon" viewBox="0 0 28 28" aria-hidden="true">
+      <svg
+        class="fd-palette-icon fd-palette-{item.kind === 'gateway'
+          ? item.nodeType === 4
+            ? 'parallel'
+            : item.nodeType === 5
+              ? 'inclusive'
+              : 'serial'
+          : item.kind}"
+        viewBox="0 0 28 28"
+        aria-hidden="true"
+      >
         {#if item.kind === 'between'}
-          <rect x="2" y="5" width="24" height="18" rx="4" />
+          <!-- 蓝卡 + 审批小图标(照 sidebarIcons betweenIcon) -->
+          <rect x="3" y="6" width="22" height="16" rx="4" class="fd-palette-shape" />
+          <g class="fd-palette-mini">
+            <rect x="6.5" y="9" width="10" height="8.5" rx="2" />
+            <circle cx="10" cy="12.2" r="1.8" />
+            <path d="M9 12.4 l1.2 1.2 l2.2 -2.2" />
+          </g>
         {:else if item.kind === 'gateway'}
-          <polygon points="14,2 26,14 14,26 2,14" />
-          <text x="14" y="15" text-anchor="middle" dominant-baseline="middle"
-            >{item.nodeType === 4 ? '+' : item.nodeType === 5 ? 'O' : 'X'}</text
-          >
-        {:else}
-          <circle
-            cx="14"
-            cy="14"
-            r="11"
-            class:fd-palette-end={item.kind === 'end'}
+          <!-- 菱形 = 旋转圆角矩形(rx≈5/50 坐标系)+ 符号 path + 圆点 -->
+          <rect
+            x="4.5"
+            y="4.5"
+            width="19"
+            height="19"
+            rx="2.8"
+            transform="rotate(45 14 14)"
+            class="fd-palette-shape"
           />
+          {#if item.nodeType === 4}
+            <path d="M8.5 14 L19.5 14" stroke-width="1.7" />
+            <path d="M14 8.5 L14 19.5" stroke-width="1.7" />
+            <circle cx="14" cy="7" r="0.85" fill="currentColor" />
+            <circle cx="21" cy="14" r="0.85" fill="currentColor" />
+            <circle cx="14" cy="21" r="0.85" fill="currentColor" />
+            <circle cx="7" cy="14" r="0.85" fill="currentColor" />
+          {:else if item.nodeType === 5}
+            <circle cx="14" cy="14" r="6.2" fill="none" stroke="currentColor" stroke-width="1.2" />
+            <circle
+              cx="14"
+              cy="14"
+              r="3.1"
+              fill="currentColor"
+              fill-opacity="0.15"
+              stroke="currentColor"
+              stroke-width="0.9"
+            />
+            <circle cx="14" cy="14" r="1" fill="currentColor" />
+          {:else}
+            <path d="M9.5 9.5 L18.5 18.5 M18.5 9.5 L9.5 18.5" stroke-width="1.5" />
+            <circle cx="8.1" cy="8.1" r="0.75" fill="currentColor" />
+            <circle cx="19.9" cy="8.1" r="0.75" fill="currentColor" />
+            <circle cx="19.9" cy="19.9" r="0.75" fill="currentColor" />
+            <circle cx="8.1" cy="19.9" r="0.75" fill="currentColor" />
+          {/if}
+        {:else if item.kind === 'end'}
+          <!-- 红双环:粗外环 + 细内环 -->
+          <circle cx="14" cy="14" r="11" class="fd-palette-shape" />
+          <circle cx="14" cy="14" r="7.5" class="fd-palette-ring" />
+        {:else}
+          <!-- 绿环 + 实内核 -->
+          <circle cx="14" cy="14" r="11" class="fd-palette-shape" />
+          <circle cx="14" cy="14" r="7" class="fd-palette-core" />
         {/if}
       </svg>
       <span>{item.label}</span>

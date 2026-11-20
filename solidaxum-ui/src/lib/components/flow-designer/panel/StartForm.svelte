@@ -16,13 +16,16 @@
   )
 </script>
 
-<NodeCommonForm {store} {node} {readonly} />
+<section class="fd-section">
+  <h3 class="fd-section-title">基础配置</h3>
+  <NodeCommonForm {store} {node} {readonly} />
+</section>
 
-<div class="mt-4">
-  <div class="text-muted-foreground mb-1 text-xs">监听器</div>
+<section class="fd-section">
+  <h3 class="fd-section-title">监听器配置</h3>
   <ListenerRows
     {rows}
     {readonly}
     onChange={(next) => store.updateNodeJson(node.id, formatListeners(next))}
   />
-</div>
+</section>

@@ -1,0 +1,192 @@
+/* 属性面板视觉(warm-flow 1.8.9 baseInfo.vue / propertySetting.vue 风格)。
+ * 全部规则限定在 .fd-panel 作用域,不影响全站 shadcn 表单组件。 */
+
+/* ---------- iOS 风格输入框 ---------- */
+.fd-panel
+  :is(
+    [data-slot='input'],
+    [data-slot='textarea'],
+    [data-slot='select-trigger']
+  ) {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  box-shadow: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.fd-panel
+  :is(
+    [data-slot='input'],
+    [data-slot='textarea'],
+    [data-slot='select-trigger']
+  ):hover:not(:disabled):not([disabled]) {
+  border-color: var(--primary);
+}
+
+.fd-panel
+  :is(
+    [data-slot='input'],
+    [data-slot='textarea'],
+    [data-slot='select-trigger']
+  ):focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 12%, transparent);
+}
+
+/* 校验失败:红边 + 红光环 */
+.fd-panel
+  :is(
+    [data-slot='input'],
+    [data-slot='textarea'],
+    [data-slot='select-trigger']
+  )[aria-invalid='true'] {
+  border-color: var(--destructive);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--destructive) 12%, transparent);
+}
+
+/* 暗色:填充式底 + 透明边框 */
+.dark
+  .fd-panel
+  :is(
+    [data-slot='input'],
+    [data-slot='textarea'],
+    [data-slot='select-trigger']
+  ) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: transparent;
+}
+
+.dark
+  .fd-panel
+  :is(
+    [data-slot='input'],
+    [data-slot='textarea'],
+    [data-slot='select-trigger']
+  ):hover:not(:disabled):not([disabled]),
+.dark
+  .fd-panel
+  :is(
+    [data-slot='input'],
+    [data-slot='textarea'],
+    [data-slot='select-trigger']
+  ):focus-visible {
+  border-color: var(--primary);
+}
+
+/* ---------- 去卡片化分区 ---------- */
+.fd-panel .fd-section {
+  margin-bottom: 20px;
+}
+
+.fd-panel .fd-section-title {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* ---------- 全宽虚线「增加行」按钮 ---------- */
+.fd-panel .fd-add-row {
+  display: flex;
+  width: 100%;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1.5px dashed var(--primary);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--primary);
+  font-size: 13px;
+  letter-spacing: 2px;
+  box-shadow: none;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+
+.fd-panel .fd-add-row:hover:not(:disabled) {
+  border-style: solid;
+  background: color-mix(in oklab, var(--primary) 7%, transparent);
+  color: var(--primary);
+}
+
+.fd-panel .fd-add-row:disabled {
+  border-color: var(--border);
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+
+/* ---------- 行删除按钮(link 图标式) ---------- */
+.fd-panel .fd-row-delete {
+  border-radius: 8px;
+  background: transparent;
+  color: var(--destructive);
+  box-shadow: none;
+}
+
+.fd-panel .fd-row-delete:hover:not(:disabled) {
+  background: rgba(245, 108, 108, 0.12);
+  color: var(--destructive);
+}
+
+/* ---------- 行列表:hover 行淡主色底 ---------- */
+.fd-panel .fd-row-list li:hover {
+  background: color-mix(in oklab, var(--primary) 6%, transparent);
+}
+
+/* ---------- 扁平下划线 tab(BetweenForm) ---------- */
+.fd-panel [data-slot='tabs-list'] {
+  width: 100%;
+  height: auto;
+  justify-content: flex-start;
+  gap: 20px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+.fd-panel [data-slot='tabs-trigger'] {
+  position: relative;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 8px 2px;
+  color: var(--muted-foreground);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.fd-panel [data-slot='tabs-trigger']:hover {
+  color: var(--primary);
+  background: transparent;
+}
+
+.fd-panel [data-slot='tabs-trigger'][data-state='active'] {
+  background: transparent;
+  box-shadow: none;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.dark .fd-panel [data-slot='tabs-trigger'][data-state='active'] {
+  background: transparent;
+}
+
+.fd-panel [data-slot='tabs-trigger'][data-state='active']::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--primary);
+}

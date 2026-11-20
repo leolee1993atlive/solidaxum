@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Button } from '$lib/components/ui/button/index.js'
-  import { Redo2, Undo2 } from '@lucide/svelte'
+  import { Redo2, Undo2, Maximize2 } from '@lucide/svelte'
   import { useSvelteFlow } from '@xyflow/svelte'
   import type { DesignerStore } from './state/designer.svelte.js'
 
@@ -40,7 +40,8 @@
     >
     <span class="mx-1 h-5 border-l"></span>
   {/if}
-  <Button variant="outline" size="sm" onclick={() => fitView()}>适应画布</Button
+  <Button variant="outline" size="sm" onclick={() => fitView()}
+    ><Maximize2 class="h-4 w-4" />适应画布</Button
   >
   <span class="flex-1"></span>
   {#if store.warnings.length}

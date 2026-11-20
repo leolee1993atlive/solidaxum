@@ -7,6 +7,7 @@
     splitPermissionFlag,
   } from '$lib/flow/node-fields.js'
   import type { FlowNode } from '$lib/flow/types.js'
+  import { Trash2 } from '@lucide/svelte'
   import type { DesignerStore } from '../state/designer.svelte.js'
   import HandlerPicker from './HandlerPicker.svelte'
 
@@ -68,7 +69,7 @@
   }
 </script>
 
-<ul class="divide-y rounded-md border text-sm">
+<ul class="fd-row-list divide-y rounded-md border text-sm">
   {#each ids as id (id)}
     <li class="flex items-center gap-2 px-2 py-1.5">
       <span class="min-w-0 flex-1 truncate">
@@ -82,9 +83,11 @@
       {#if !readonly}
         <Button
           variant="ghost"
-          size="sm"
+          size="icon-sm"
+          class="fd-row-delete shrink-0"
           aria-label="移除 {id}"
-          onclick={() => write(ids.filter((x) => x !== id))}>✕</Button
+          onclick={() => write(ids.filter((x) => x !== id))}
+          ><Trash2 class="h-4 w-4" /></Button
         >
       {/if}
     </li>
