@@ -140,10 +140,9 @@ mod tests {
 
     #[test]
     fn datetime_accepts_rfc3339_naive_and_date() {
-        let bo: Bo = serde_json::from_str(
-            r#"{"id":1,"begin":"2026-10-31T10:00:00Z"}"#,
-        )
-        .unwrap();
+        let bo: Bo =
+            serde_json::from_str(r#"{"id":1,"begin":"2026-10-31T10:00:00Z"}"#)
+                .unwrap();
         assert_eq!(
             bo.begin,
             Some(Utc.with_ymd_and_hms(2026, 10, 31, 10, 0, 0).unwrap())

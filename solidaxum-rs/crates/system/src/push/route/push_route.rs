@@ -7,10 +7,10 @@ use axum::{
 
 use crate::{
     app::AppState,
-    push::handler::{
-        channel_config_handler as ch, message_log_handler as log,
+    push::{
+        handler::{channel_config_handler as ch, message_log_handler as log},
+        sse::sse_handler,
     },
-    push::sse::sse_handler,
 };
 
 pub fn push_route() -> Router<Arc<AppState>> {

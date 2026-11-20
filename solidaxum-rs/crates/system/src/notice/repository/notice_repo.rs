@@ -32,9 +32,9 @@ use app_data::{
     sea_orm::{
         self, ActiveModelBehavior,
         ActiveValue::{NotSet, Set},
-        ColumnTrait, Condition, DateTimeUtc, DeriveEntityModel, DerivePrimaryKey,
-        DeriveRelation, EntityTrait, EnumIter, Order, PrimaryKeyTrait,
-        QueryFilter, QueryOrder,
+        ColumnTrait, Condition, DateTimeUtc, DeriveEntityModel,
+        DerivePrimaryKey, DeriveRelation, EntityTrait, EnumIter, Order,
+        PrimaryKeyTrait, QueryFilter, QueryOrder,
     },
 };
 

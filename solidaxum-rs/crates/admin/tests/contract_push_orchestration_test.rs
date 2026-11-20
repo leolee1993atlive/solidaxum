@@ -16,10 +16,12 @@ use app_data::sea_orm::{
 };
 use flow::notifier::FlowNotifier;
 use serde_json::json;
-use system::push::repository::sys_message_send_log::{
-    Column as LogColumn, Entity as LogEntity, Model as LogModel,
+use system::{
+    push::repository::sys_message_send_log::{
+        Column as LogColumn, Entity as LogEntity, Model as LogModel,
+    },
+    user::repository::user_repo::ActiveModel as UserActiveModel,
 };
-use system::user::repository::user_repo::ActiveModel as UserActiveModel;
 
 fn channel_user() -> LoginUser {
     user_with_perms(&[

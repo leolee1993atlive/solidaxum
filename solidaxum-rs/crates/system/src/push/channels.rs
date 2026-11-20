@@ -12,16 +12,17 @@
 //!
 //! 发送结果(SUCCESS/FAILED/SKIPPED)一律写 `sys_message_send_log`。
 
-use std::sync::atomic::{AtomicI64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    sync::atomic::{AtomicI64, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
+use app_data::{DataContext, DataError, sea_orm::ActiveValue::Set};
 use serde_json::{Value, json};
 
 use crate::push::repository::sys_message_send_log::{
     ActiveModel, SendLogRepository,
 };
-use app_data::sea_orm::ActiveValue::Set;
-use app_data::{DataContext, DataError};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Channel {
@@ -417,11 +418,12 @@ pub async fn dispatch(
 
 #[cfg(test)]
 mod tests {
+    use app_data::sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+
     use super::*;
     use crate::push::repository::sys_message_send_log::{
         Column, Entity as SendLogEntity,
     };
-    use app_data::sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     #[test]
     fn channel_names_match_send_log_contract() {

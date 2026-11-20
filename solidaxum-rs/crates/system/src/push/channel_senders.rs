@@ -9,12 +9,13 @@
 //! 配置来源:`sys_message_channel`(DB 优先,空则回退同名环境变量,见
 //! [`resolve_config`])。
 
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
-
-use serde_json::{Value, json};
+use std::{
+    sync::Mutex,
+    time::{Duration, Instant},
+};
 
 use app_core::error::{AppError, AppResult};
+use serde_json::{Value, json};
 
 use crate::push::repository::sys_message_channel::ChannelConfig;
 

@@ -4,15 +4,17 @@
 //! `(notice_id,user_id)` 表达个人已读/星标状态,同样不参与行级范围;
 //! 读显式 `without_row_scope()`,写由漏斗盖 `create_time`。
 
-use app_data::sea_orm::{
-    self, ActiveModelBehavior,
-    ActiveValue::{NotSet, Set},
-    ColumnTrait, Condition, DateTimeUtc, DeriveEntityModel, DerivePrimaryKey,
-    DeriveRelation, EntityTrait, EnumIter, PrimaryKeyTrait, QueryFilter,
-};
-use app_data::{DataContext, DataError, DataSource};
-
 use app_core::util::snowflake;
+use app_data::{
+    DataContext, DataError, DataSource,
+    sea_orm::{
+        self, ActiveModelBehavior,
+        ActiveValue::{NotSet, Set},
+        ColumnTrait, Condition, DateTimeUtc, DeriveEntityModel,
+        DerivePrimaryKey, DeriveRelation, EntityTrait, EnumIter,
+        PrimaryKeyTrait, QueryFilter,
+    },
+};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "sys_notice_read")]

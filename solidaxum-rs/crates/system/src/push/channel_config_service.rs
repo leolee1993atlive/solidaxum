@@ -6,16 +6,17 @@
 
 use std::sync::Arc;
 
+use app_core::{
+    error::{AppError, AppResult},
+    serde::encrypt_field::FieldEncryptor,
+};
+use app_data::DataContext;
 use serde::Serialize;
 use serde_json::{Value, json};
 
-use app_core::error::{AppError, AppResult};
-use app_core::serde::encrypt_field::FieldEncryptor;
-use app_data::DataContext;
-
-use crate::push::channel_senders as senders;
-use crate::push::repository::sys_message_channel::{
-    self, ChannelConfig, ChannelRepository,
+use crate::push::{
+    channel_senders as senders,
+    repository::sys_message_channel::{self, ChannelConfig, ChannelRepository},
 };
 
 /// 支持的渠道(短信与 APP 按院方定制,不在配置页维护)。

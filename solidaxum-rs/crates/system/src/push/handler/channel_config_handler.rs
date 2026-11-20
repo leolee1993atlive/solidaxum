@@ -5,14 +5,18 @@
 
 use std::sync::Arc;
 
-use app_core::error::{AppError, AppResult};
-use app_core::middleware::extractors::CurrentUser;
-use app_core::vo::response::R;
+use app_core::{
+    error::{AppError, AppResult},
+    middleware::extractors::CurrentUser,
+    vo::response::R,
+};
 use axum::{Json, extract::State};
 use serde_json::Value;
 
-use crate::app::AppState;
-use crate::push::channel_config_service::{self, ChannelSaveBo, ChannelVo};
+use crate::{
+    app::AppState,
+    push::channel_config_service::{self, ChannelSaveBo, ChannelVo},
+};
 
 macro_rules! require_perm {
     ($u:expr, $p:literal) => {

@@ -7,14 +7,15 @@
 //! 密钥列 `client_secret` / `agent_secret` 落库前经核心 `FieldEncryptor`
 //! AES 加密(与 `sys_oss_config` 同先例),对外回读一律掩码。
 
-use serde::{Deserialize, Serialize};
-
-use app_data::sea_orm::{
-    self, ActiveModelBehavior, ActiveValue::Set, DateTimeUtc,
-    DeriveEntityModel, DerivePrimaryKey, DeriveRelation, EntityTrait, EnumIter,
-    PrimaryKeyTrait,
+use app_data::{
+    DataContext, DataError,
+    sea_orm::{
+        self, ActiveModelBehavior, ActiveValue::Set, DateTimeUtc,
+        DeriveEntityModel, DerivePrimaryKey, DeriveRelation, EntityTrait,
+        EnumIter, PrimaryKeyTrait,
+    },
 };
-use app_data::{DataContext, DataError};
+use serde::{Deserialize, Serialize};
 
 #[derive(
     Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel, Eq,

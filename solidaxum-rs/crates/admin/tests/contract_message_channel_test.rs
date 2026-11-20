@@ -257,7 +257,10 @@ async fn insert_log(
         create_time: Set(Some(create_time)),
         ..Default::default()
     };
-    SendLogRepository::new().insert(&ctx, am).await.expect("插日志");
+    SendLogRepository::new()
+        .insert(&ctx, am)
+        .await
+        .expect("插日志");
 }
 
 #[tokio::test]

@@ -22,24 +22,25 @@ use std::{
     time::{Duration, Instant},
 };
 
-use serde::Serialize;
-use serde_json::json;
-
 use app_core::{
     infra::Infrastructure, serde::encrypt_field::FieldEncryptor,
     util::snowflake,
 };
 use app_data::{DataContext, DataSource};
+use serde::Serialize;
+use serde_json::json;
 
-use crate::push::{
-    channel_config_service::resolve_config,
-    channel_senders,
-    channels::{self, Channel, SendOutcome, SendRequest},
-    message::PushMessage,
-    repository::sys_message_channel::ChannelConfig,
-    sse::PushHub,
+use crate::{
+    push::{
+        channel_config_service::resolve_config,
+        channel_senders,
+        channels::{self, Channel, SendOutcome, SendRequest},
+        message::PushMessage,
+        repository::sys_message_channel::ChannelConfig,
+        sse::PushHub,
+    },
+    user::{model::user::User, repository::user_repo::UserRepository},
 };
-use crate::user::{model::user::User, repository::user_repo::UserRepository};
 
 /// 去重窗口(同一事件 10s 内重复触发只发一次)。
 const DEDUPE_WINDOW: Duration = Duration::from_secs(10);

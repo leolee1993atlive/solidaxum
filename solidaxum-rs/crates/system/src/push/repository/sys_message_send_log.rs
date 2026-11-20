@@ -1,17 +1,20 @@
 //! `sys_message_send_log` 消息发送记录(insert-only)。
 //! 一行 = 一次渠道发送(SUCCESS/FAILED/SKIPPED,只记录无重试)。
 
-use app_core::repo::str_trim_or_empty;
-use app_core::vo::page::{PageQuery, TableDataInfo};
+use app_core::{
+    repo::str_trim_or_empty,
+    vo::page::{PageQuery, TableDataInfo},
+};
+use app_data::{
+    DataContext, DataError,
+    sea_orm::{
+        self, ActiveModelBehavior, ActiveValue::NotSet, ColumnTrait,
+        DateTimeUtc, DeriveEntityModel, DerivePrimaryKey, DeriveRelation,
+        EntityTrait, EnumIter, Order, PrimaryKeyTrait, QueryFilter, QueryOrder,
+    },
+};
 use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use serde::{Deserialize, Deserializer, Serialize};
-
-use app_data::sea_orm::{
-    self, ActiveModelBehavior, ActiveValue::NotSet, ColumnTrait, DateTimeUtc,
-    DeriveEntityModel, DerivePrimaryKey, DeriveRelation, EntityTrait, EnumIter,
-    Order, PrimaryKeyTrait, QueryFilter, QueryOrder,
-};
-use app_data::{DataContext, DataError};
 
 #[derive(
     Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel, Eq,
@@ -106,8 +109,7 @@ where
     if let Ok(dt) = DateTime::parse_from_rfc3339(raw) {
         return Ok(Some(dt.with_timezone(&Utc) + Duration::seconds(1)));
     }
-    if let Ok(naive) = NaiveDateTime::parse_from_str(raw, "%Y-%m-%d %H:%M:%S")
-    {
+    if let Ok(naive) = NaiveDateTime::parse_from_str(raw, "%Y-%m-%d %H:%M:%S") {
         return Ok(Some(Utc.from_utc_datetime(&naive) + Duration::seconds(1)));
     }
     if let Ok(date) = NaiveDate::parse_from_str(raw, "%Y-%m-%d") {
