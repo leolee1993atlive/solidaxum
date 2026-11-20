@@ -851,6 +851,9 @@ impl UserService {
                 user_type: Some("sys_user".to_string()),
                 email: row.email.clone(),
                 phone_number: row.phone_number.clone(),
+                wechat_user_id: None,
+                dingtalk_user_id: None,
+                feishu_user_id: None,
                 gender: row.gender.clone(),
                 avatar: None,
                 status: row

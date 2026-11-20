@@ -33,6 +33,7 @@ use crate::{
     },
     post::service::post_service::PostService,
     profile::service::profile_service::ProfileService,
+    push::push_service::PushService,
     push::sse::PushHub,
     role::service::role_service::RoleService,
     social::service::social_service::SocialService,
@@ -66,6 +67,8 @@ pub struct ServiceContainer {
     pub sys_config_service: ConfigService,
     pub translation_service: TranslationService,
     pub push_hub: PushHub,
+    /// 通用推送编排(SSE + IM/短信/APP 渠道扇出)
+    pub push_service: PushService,
     pub oss_service: OssService,
     pub gen_table_service: GenTableService,
     pub code_gen_engine: CodeGenEngine,
@@ -135,6 +138,8 @@ impl ServiceContainer {
                 "field_encryptor 重复装配被拒绝,首次注入的句柄继续生效"
             );
         }
+        let push_hub = PushHub::new();
+        let push_service = PushService::new(infra, push_hub.clone());
         Ok(Self {
             user_service: UserService::new(infra)
                 .with_scope_cache(scope_cache.clone()),
@@ -157,7 +162,8 @@ impl ServiceContainer {
             dict_data_service: DictDataService::new(infra),
             sys_config_service: ConfigService::new(infra),
             translation_service: TranslationService::new(infra),
-            push_hub: PushHub::new(),
+            push_hub,
+            push_service,
             oss_service: OssService::with_encryptor(infra, field_encryptor),
             gen_table_service: GenTableService::new(
                 // 元数据读取经 app-data 漏斗(设计 6.3 meta 行)。此处恒为

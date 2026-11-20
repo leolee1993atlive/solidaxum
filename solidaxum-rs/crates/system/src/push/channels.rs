@@ -151,9 +151,9 @@ fn sanitize_error_str(s: &str) -> String {
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn log(
+pub(crate) async fn write_log(
     ctx: &DataContext<'_>,
-    channel: Channel,
+    channel: &str,
     biz_type: &str,
     user_ids: &[i64],
     content: &str,
@@ -166,7 +166,7 @@ async fn log(
 ) {
     let mut am = ActiveModel::from_new();
     am.log_id = Set(next_log_id());
-    am.channel = Set(channel.as_str().to_string());
+    am.channel = Set(channel.to_string());
     am.batch_id = Set(batch_id.map(str::to_string));
     am.biz_type = Set(Some(biz_type.to_string()));
     am.biz_id = Set(biz_id.map(str::to_string));
@@ -181,7 +181,7 @@ async fn log(
         Set(provider.map(|s| s.chars().take(500).collect::<String>()));
     if let Err(e) = SendLogRepository::new().insert(ctx, am).await {
         tracing::warn!(
-            channel = channel.as_str(),
+            channel,
             error = %e,
             "发送日志写入失败"
         );
@@ -221,9 +221,9 @@ pub async fn dispatch(
 ) -> Result<SendOutcome, DataError> {
     macro_rules! skip {
         ($reason:expr) => {{
-            log(
+            write_log(
                 ctx,
-                channel,
+                channel.as_str(),
                 req.biz_type,
                 req.user_ids,
                 req.content,
@@ -282,9 +282,9 @@ pub async fn dispatch(
             };
             match res {
                 Ok(body) => {
-                    log(
+                    write_log(
                         ctx,
-                        channel,
+                        channel.as_str(),
                         req.biz_type,
                         req.user_ids,
                         req.content,
@@ -300,9 +300,9 @@ pub async fn dispatch(
                 }
                 Err(e) => {
                     let msg = sanitize_error_str(&e.to_string());
-                    log(
+                    write_log(
                         ctx,
-                        channel,
+                        channel.as_str(),
                         req.biz_type,
                         req.user_ids,
                         req.content,
@@ -331,9 +331,9 @@ pub async fn dispatch(
                 .unwrap_or_else(|| json!({ "text": req.content }));
             match sender.send(req.platform_ids, &content).await {
                 Ok(body) => {
-                    log(
+                    write_log(
                         ctx,
-                        channel,
+                        channel.as_str(),
                         req.biz_type,
                         req.user_ids,
                         req.content,
@@ -349,9 +349,9 @@ pub async fn dispatch(
                 }
                 Err(e) => {
                     let msg = sanitize_error_str(&e);
-                    log(
+                    write_log(
                         ctx,
-                        channel,
+                        channel.as_str(),
                         req.biz_type,
                         req.user_ids,
                         req.content,
@@ -376,9 +376,9 @@ pub async fn dispatch(
             }
             match sender.send(req.platform_ids, req.content).await {
                 Ok(body) => {
-                    log(
+                    write_log(
                         ctx,
-                        channel,
+                        channel.as_str(),
                         req.biz_type,
                         req.user_ids,
                         req.content,
@@ -394,9 +394,9 @@ pub async fn dispatch(
                 }
                 Err(e) => {
                     let msg = sanitize_error_str(&e);
-                    log(
+                    write_log(
                         ctx,
-                        channel,
+                        channel.as_str(),
                         req.biz_type,
                         req.user_ids,
                         req.content,

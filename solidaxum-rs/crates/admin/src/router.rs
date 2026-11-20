@@ -56,7 +56,7 @@ use system::{
 use tower_http::catch_panic::CatchPanicLayer;
 
 use crate::{
-    flow_notifier::arc_notifier,
+    flow_notifier::arc_notifier_with_send_log,
     flow_resolver::{
         LeaveStatusCallback, SystemHandlerSelectService, SystemUserResolver,
     },
@@ -178,7 +178,10 @@ pub fn build_router(
         Arc::new(SystemUserResolver::new(app_state.infra.data_source()));
     let business_callback: Arc<dyn BusinessStatusCallback> =
         Arc::new(LeaveStatusCallback::new(app_state.infra.data_source()));
-    let flow_notifier = arc_notifier(app_state.services.push_hub.clone());
+    let flow_notifier = arc_notifier_with_send_log(
+        app_state.services.push_hub.clone(),
+        app_state.infra.data_source(),
+    );
     let handler_select: Arc<dyn HandlerSelectService> = Arc::new(
         SystemHandlerSelectService::new(app_state.infra.data_source()),
     );

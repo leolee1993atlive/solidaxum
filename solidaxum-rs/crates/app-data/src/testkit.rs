@@ -18,6 +18,7 @@ pub const SYSTEM_TABLE_DDL: &[&str] = &[
     r#"CREATE TABLE IF NOT EXISTS sys_user (
         user_id INTEGER PRIMARY KEY, dept_id INTEGER, user_name TEXT NOT NULL,
         nick_name TEXT NOT NULL, user_type TEXT, email TEXT, phone_number TEXT,
+        wechat_user_id TEXT, dingtalk_user_id TEXT, feishu_user_id TEXT,
         gender TEXT, avatar INTEGER, password TEXT NOT NULL, status TEXT NOT NULL,
         del_flag TEXT NOT NULL, login_ip TEXT, login_date TEXT, create_dept INTEGER,
         create_by INTEGER, create_time TEXT, update_by INTEGER, update_time TEXT,
