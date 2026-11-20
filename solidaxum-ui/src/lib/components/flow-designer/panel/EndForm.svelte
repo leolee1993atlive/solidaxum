@@ -10,4 +10,7 @@
   }: { store: DesignerStore; node: FlowNode; readonly?: boolean } = $props()
 </script>
 
-<NodeCommonForm {store} {node} {readonly} />
+<section class="fd-section">
+  <h3 class="fd-section-title">基础配置</h3>
+  <NodeCommonForm {store} {node} {readonly} />
+</section>

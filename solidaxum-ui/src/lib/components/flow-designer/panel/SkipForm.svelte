@@ -60,104 +60,112 @@
   }
 </script>
 
-<Field.Field>
-  <Field.Label for="fd-skip-name">跳转名称</Field.Label>
-  <Input
-    id="fd-skip-name"
-    value={edge.data.json.skipName ?? ''}
-    disabled={readonly}
-    oninput={(e) =>
-      store.updateEdgeJson(edge.id, { skipName: e.currentTarget.value })}
-  />
-</Field.Field>
-
-<Field.Field>
-  <Field.Label for="fd-skip-type">跳转类型</Field.Label>
-  <Select.Root
-    type="single"
-    value={skipType}
-    disabled={readonly}
-    onValueChange={(v) =>
-      store.updateEdgeJson(edge.id, { skipType: v as SkipType })}
-  >
-    <Select.Trigger id="fd-skip-type" class="w-full">
-      {labelOf(skipTypeOptions, skipType)}
-    </Select.Trigger>
-    <Select.Content>
-      {#each skipTypeOptions as o (o.value)}
-        <Select.Item value={o.value} label={o.label} />
-      {/each}
-    </Select.Content>
-  </Select.Root>
-</Field.Field>
-
-<Field.Field>
-  <Field.Label for="fd-skip-cond-kind">跳转条件</Field.Label>
-  <Select.Root
-    type="single"
-    value={cond.kind}
-    disabled={readonly}
-    onValueChange={setKind}
-  >
-    <Select.Trigger id="fd-skip-cond-kind" class="w-full">
-      {labelOf(condKindOptions, cond.kind)}
-    </Select.Trigger>
-    <Select.Content>
-      {#each condKindOptions as o (o.value)}
-        <Select.Item value={o.value} label={o.label} />
-      {/each}
-    </Select.Content>
-  </Select.Root>
-
-  {#if cond.kind === 'compare'}
-    <div class="flex gap-2">
+<section class="fd-section">
+  <h3 class="fd-section-title">跳转配置</h3>
+  <div class="space-y-4">
+    <Field.Field>
+      <Field.Label for="fd-skip-name">跳转名称</Field.Label>
       <Input
-        class="min-w-0 flex-1"
-        placeholder="变量名"
-        aria-label="条件变量"
-        value={cond.variable}
+        id="fd-skip-name"
+        value={edge.data.json.skipName ?? ''}
         disabled={readonly}
-        oninput={(e) => write({ ...cond, variable: e.currentTarget.value })}
+        oninput={(e) =>
+          store.updateEdgeJson(edge.id, { skipName: e.currentTarget.value })}
       />
+    </Field.Field>
+
+    <Field.Field>
+      <Field.Label for="fd-skip-type">跳转类型</Field.Label>
       <Select.Root
         type="single"
-        value={cond.op}
+        value={skipType}
         disabled={readonly}
-        onValueChange={(v) => write({ ...cond, op: v as typeof cond.op })}
+        onValueChange={(v) =>
+          store.updateEdgeJson(edge.id, { skipType: v as SkipType })}
       >
-        <Select.Trigger class="w-28 shrink-0" aria-label="比较方式">
-          {labelOf(COMPARE_OPS, cond.op)}
+        <Select.Trigger id="fd-skip-type" class="w-full">
+          {labelOf(skipTypeOptions, skipType)}
         </Select.Trigger>
         <Select.Content>
-          {#each COMPARE_OPS as op (op.value)}
-            <Select.Item value={op.value} label={op.label} />
+          {#each skipTypeOptions as o (o.value)}
+            <Select.Item value={o.value} label={o.label} />
           {/each}
         </Select.Content>
       </Select.Root>
-      <Input
-        class="min-w-0 flex-1"
-        placeholder="比较值"
-        aria-label="比较值"
-        value={cond.value}
+    </Field.Field>
+  </div>
+</section>
+
+<section class="fd-section">
+  <h3 class="fd-section-title">跳转条件</h3>
+  <Field.Field>
+    <Field.Label for="fd-skip-cond-kind">跳转条件</Field.Label>
+    <Select.Root
+      type="single"
+      value={cond.kind}
+      disabled={readonly}
+      onValueChange={setKind}
+    >
+      <Select.Trigger id="fd-skip-cond-kind" class="w-full">
+        {labelOf(condKindOptions, cond.kind)}
+      </Select.Trigger>
+      <Select.Content>
+        {#each condKindOptions as o (o.value)}
+          <Select.Item value={o.value} label={o.label} />
+        {/each}
+      </Select.Content>
+    </Select.Root>
+
+    {#if cond.kind === 'compare'}
+      <div class="flex gap-2">
+        <Input
+          class="min-w-0 flex-1"
+          placeholder="变量名"
+          aria-label="条件变量"
+          value={cond.variable}
+          disabled={readonly}
+          oninput={(e) => write({ ...cond, variable: e.currentTarget.value })}
+        />
+        <Select.Root
+          type="single"
+          value={cond.op}
+          disabled={readonly}
+          onValueChange={(v) => write({ ...cond, op: v as typeof cond.op })}
+        >
+          <Select.Trigger class="w-28 shrink-0" aria-label="比较方式">
+            {labelOf(COMPARE_OPS, cond.op)}
+          </Select.Trigger>
+          <Select.Content>
+            {#each COMPARE_OPS as op (op.value)}
+              <Select.Item value={op.value} label={op.label} />
+            {/each}
+          </Select.Content>
+        </Select.Root>
+        <Input
+          class="min-w-0 flex-1"
+          placeholder="比较值"
+          aria-label="比较值"
+          value={cond.value}
+          disabled={readonly}
+          oninput={(e) => write({ ...cond, value: e.currentTarget.value })}
+        />
+      </div>
+    {:else if cond.kind === 'spel'}
+      <Textarea
+        aria-label="spel 表达式"
+        placeholder={'如 #leaveDays > 2 && #type == "annual"'}
+        value={cond.expr}
         disabled={readonly}
-        oninput={(e) => write({ ...cond, value: e.currentTarget.value })}
+        oninput={(e) => write({ kind: 'spel', expr: e.currentTarget.value })}
       />
-    </div>
-  {:else if cond.kind === 'spel'}
-    <Textarea
-      aria-label="spel 表达式"
-      placeholder={'如 #leaveDays > 2 && #type == "annual"'}
-      value={cond.expr}
-      disabled={readonly}
-      oninput={(e) => write({ kind: 'spel', expr: e.currentTarget.value })}
-    />
-  {:else if cond.kind === 'raw'}
-    <Textarea
-      aria-label="原始表达式"
-      value={cond.raw}
-      disabled={readonly}
-      oninput={(e) => write({ kind: 'raw', raw: e.currentTarget.value })}
-    />
-  {/if}
-  {#if error}<Field.Error>{error}</Field.Error>{/if}
-</Field.Field>
+    {:else if cond.kind === 'raw'}
+      <Textarea
+        aria-label="原始表达式"
+        value={cond.raw}
+        disabled={readonly}
+        oninput={(e) => write({ kind: 'raw', raw: e.currentTarget.value })}
+      />
+    {/if}
+    {#if error}<Field.Error>{error}</Field.Error>{/if}
+  </Field.Field>
+</section>

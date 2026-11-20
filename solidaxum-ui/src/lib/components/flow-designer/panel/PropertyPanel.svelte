@@ -5,6 +5,7 @@
   import GatewayForm from './GatewayForm.svelte'
   import SkipForm from './SkipForm.svelte'
   import StartForm from './StartForm.svelte'
+  import './panel.css'
 
   // 按选中元素路由到表单;{#key} 让换一个元素时表单整体重建,表单内的草稿态不会串
   let {
@@ -29,8 +30,10 @@
   )
 </script>
 
-<aside class="w-80 shrink-0 overflow-auto border-l p-3 text-sm">
-  <div class="text-muted-foreground mb-2 text-xs">{title}</div>
+<aside class="fd-panel w-80 shrink-0 overflow-auto border-l p-3 text-sm">
+  {#if edge || node}
+    <div class="fd-section-title">{title}</div>
+  {/if}
   {#if edge}
     {#key edge.id}<SkipForm {store} {edge} {readonly} />{/key}
   {:else if node}

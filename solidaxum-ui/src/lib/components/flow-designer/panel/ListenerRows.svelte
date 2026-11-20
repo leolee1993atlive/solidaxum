@@ -4,6 +4,7 @@
   import { Input } from '$lib/components/ui/input/index.js'
   import * as Select from '$lib/components/ui/select/index.js'
   import { LISTENER_TYPES, type ListenerRow } from '$lib/flow/node-fields.js'
+  import { Trash2 } from '@lucide/svelte'
   import { loadListenerNames } from './options.js'
 
   // 监听器行:类型下拉 + 路径输入(后端 listener-list 给的名字作 datalist 建议,也可手输类路径)。
@@ -79,17 +80,19 @@
       {#if !readonly}
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
+          class="fd-row-delete shrink-0"
           aria-label="删除监听器"
-          onclick={() => set(local.filter((_, idx) => idx !== i))}>✕</Button
+          onclick={() => set(local.filter((_, idx) => idx !== i))}
+          ><Trash2 class="h-4 w-4" /></Button
         >
       {/if}
     </div>
   {/each}
   {#if !readonly}
     <Button
-      variant="outline"
-      size="sm"
+      variant="ghost"
+      class="fd-add-row"
       onclick={() => set([...local, { listenerType: '', listenerPath: '' }])}
       >+ 监听器</Button
     >

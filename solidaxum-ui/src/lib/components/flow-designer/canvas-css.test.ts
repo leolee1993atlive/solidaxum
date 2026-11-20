@@ -80,3 +80,80 @@ describe('WP6:落线高亮 / 重连锚 / 面板(canvas.css)', () => {
     expect(parseThemeBlock(css, '.fd-palette-item')['cursor']).toBe('grab')
   })
 })
+
+describe('设计态语义色(1.8.9 视觉移植,canvas.css)', () => {
+  it('.fd-canvas 定义六个语义色变量与选中强调色', () => {
+    const rule = parseThemeBlock(css, '.fd-canvas')
+    expect(rule['--fd-start']).toBe('103, 194, 58')
+    expect(rule['--fd-between']).toBe('64, 158, 255')
+    expect(rule['--fd-end']).toBe('245, 108, 108')
+    expect(rule['--fd-serial']).toBe('245, 158, 11')
+    expect(rule['--fd-parallel']).toBe('19, 194, 194')
+    expect(rule['--fd-inclusive']).toBe('146, 84, 222')
+    expect(rule['--fd-accent']).toBe('37, 99, 235')
+  })
+
+  it.each([
+    ['.fd-gateway.fd-serial', '--fd-serial'],
+    ['.fd-gateway.fd-parallel', '--fd-parallel'],
+    ['.fd-gateway.fd-inclusive', '--fd-inclusive'],
+  ])('%s polygon 语义色描边 + 淡色填充', (selector, variable) => {
+    const rule = parseThemeBlock(css, `${selector} polygon`)
+    expect(rule['stroke']).toBe(`rgb(var(${variable}))`)
+    expect(rule['fill']).toBe(`rgba(var(${variable}), 0.06)`)
+  })
+
+  it('start 内核 / end 内环用 ::after 实现', () => {
+    const core = parseThemeBlock(css, '.fd-circle::after')
+    expect(core['background']).toContain('radial-gradient')
+    expect(core['background']).toContain('--fd-start')
+    const ring = parseThemeBlock(css, '.fd-end::after')
+    expect(ring['border']).toBe('1px solid rgba(var(--fd-end), 0.25)')
+    // end 的内环必须盖掉 start 内核:两规则同特异性,.fd-end::after 靠源码顺序取胜
+    expect(css.indexOf('.fd-end::after')).toBeGreaterThan(
+      css.indexOf('.fd-circle::after')
+    )
+  })
+
+  it('between 卡片语义描边 + 顶部光泽条 ::before', () => {
+    const card = parseThemeBlock(css, '.fd-between')
+    expect(card['border-color']).toBe('rgb(var(--fd-between))')
+    const sheen = parseThemeBlock(css, '.fd-between::before')
+    expect(sheen['background']).toContain('--fd-between')
+  })
+
+  it('边与标签胶囊柔化:边 slate-400、标签边框 slate-200', () => {
+    expect(parseThemeBlock(css, '.svelte-flow__edge-path.fd-skip')['stroke']).toBe(
+      '#94a3b8'
+    )
+    expect(parseThemeBlock(css, '.fd-edge-label')['border']).toBe(
+      '1px solid #e2e8f0'
+    )
+  })
+
+  it('网关符号改由 path/circle 规则上色,不再有 text 规则', () => {
+    expect(parseThemeBlock(css, '.fd-gateway .fd-glyph path')['stroke']).toBe(
+      'currentColor'
+    )
+    expect(css).not.toContain('.fd-gateway text')
+  })
+
+  it('实例流程图状态规则在语义规则之后(同特异性时源码顺序决定优先级)', () => {
+    const stripped = css.replace(/\/\*[\s\S]*?\*\//g, '')
+    const semantic = stripped.indexOf('.fd-gateway.fd-serial polygon')
+    const status = stripped.indexOf('.fd-gateway.fd-status-done polygon')
+    expect(semantic).toBeGreaterThan(-1)
+    expect(status).toBeGreaterThan(semantic)
+  })
+
+  it('状态节点规则特异性高于定义态语义规则(节点描边)', () => {
+    // .fd-node.fd-status-* (0,2,0) 天然高于 .fd-circle/.fd-between (0,1,0),
+    // 实例流程图(ApprovalRecord,FlowChart.svelte)的三原色不被语义色覆盖
+    expect(
+      parseThemeBlock(css, '.fd-node.fd-status-done')['border-color']
+    ).toBe('rgb(var(--fd-done))')
+    expect(
+      parseThemeBlock(css, '.fd-node.fd-status-todo')['border-style']
+    ).toBe('dashed')
+  })
+})
