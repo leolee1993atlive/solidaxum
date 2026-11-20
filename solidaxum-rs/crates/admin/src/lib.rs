@@ -10,6 +10,7 @@ pub mod flow_notifier;
 pub mod flow_resolver;
 pub mod installer;
 pub mod router;
+pub mod tls;
 
 #[cfg(feature = "test-util")]
 pub mod testkit;

@@ -27,6 +27,12 @@ app_data.workspace = true
 job.workspace = true
 anyhow.workspace = true
 axum.workspace = true
+# HTTPS(首装增强 #1):TLS serve + 证书装载 + 自签生成
+axum-server.workspace = true
+rustls.workspace = true
+rustls-pemfile.workspace = true
+rcgen.workspace = true
+time.workspace = true
 tower-http.workspace = true
 tokio.workspace = true
 tracing.workspace = true
@@ -53,6 +59,8 @@ tower = { workspace = true, optional = true }
 http-body-util = { version = "0.1", optional = true }
 
 [dev-dependencies]
+# TLS 启动冒烟测试(自签客户端握手);与 axum-server 的 tokio-rustls 0.26 同版本
+tokio-rustls = "0.26"
 base64.workspace = true
 # app-data 的测试脚手架(设计 9 节第 4 条):testkit 换轨后
 # sqlite_memory_conn / testkit 脚本面只经 dev-dependencies 启用。

@@ -187,16 +187,35 @@ async fn main() -> anyhow::Result<()> {
         config.flow.assignee_sync_max_retry,
     );
 
-    let listener = tokio::net::TcpListener::bind(format!(
-        "{}:{}",
-        config.server.host, config.server.port
-    ))
-    .await
-    .context("绑定监听地址失败")?;
-    let addr = listener.local_addr().context("读取监听地址失败")?;
-    tracing::info!(addr = %addr, "服务启动监听");
-    axum::serve(listener, app)
-        .await
-        .context("启动 HTTP 服务失败")?;
+    let addr = format!("{}:{}", config.server.host, config.server.port);
+
+    // HTTPS 分支(首装增强 #1):证书装载失败直接中止启动 —— 不静默
+    // 降级回 HTTP,避免客户误以为还在加密通道。前端是相对路径 + header
+    // token,对协议无感,两个分支共用同一个 app。
+    // 单属主约定:TLS 分支由 axum_server 独占绑定(见 tls::serve_https),
+    // 只有 HTTP 分支持有预绑的 tokio listener —— 预绑后再交给
+    // axum_server 绑同一地址必然 EADDRINUSE。
+    if config.server.https.enabled {
+        let rustls_cfg = admin::tls::build_server_config(
+            Path::new(&config.server.https.cert),
+            Path::new(&config.server.https.key),
+        )
+        .context(
+            "HTTPS 证书装载失败,服务中止(检查 [server.https] 的 cert/key)",
+        )?;
+        tracing::info!(addr = %addr, "服务启动监听(HTTPS)");
+        admin::tls::serve_https(app, addr, rustls_cfg)
+            .await
+            .context("启动 HTTPS 服务失败")?;
+    } else {
+        let listener = tokio::net::TcpListener::bind(&addr)
+            .await
+            .context("绑定监听地址失败")?;
+        let addr = listener.local_addr().context("读取监听地址失败")?;
+        tracing::info!(addr = %addr, "服务启动监听");
+        axum::serve(listener, app)
+            .await
+            .context("启动 HTTP 服务失败")?;
+    }
     Ok(())
 }
