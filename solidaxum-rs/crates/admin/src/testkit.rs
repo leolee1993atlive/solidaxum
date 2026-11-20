@@ -432,6 +432,15 @@ pub fn user_with_perms(perms: &[&str]) -> LoginUser {
     }
 }
 
+/// 指定部门的测试用户(公告定向目标等;与 [`user_with_perms`] 同构,
+/// 仅 user_id/dept_id 参数化)。
+pub fn user_in_dept(user_id: i64, dept_id: i64, perms: &[&str]) -> LoginUser {
+    let mut u = user_with_perms(perms);
+    u.user_id = user_id;
+    u.dept_id = Some(dept_id);
+    u
+}
+
 /// 超级管理员(拥有 `*:*:*`)。
 pub fn super_admin() -> LoginUser {
     let mut u = user_with_perms(&["*:*:*"]);

@@ -43,7 +43,7 @@ use crate::{
     dict::repository::{dict_data_repo, dict_type_repo},
     menu::repository::menu_repo,
     message::repository::message_repo,
-    notice::repository::notice_repo,
+    notice::repository::{notice_read_repo, notice_repo},
     oss::repository::{oss_config_repo, oss_repo},
     post::repository::post_repo,
     push::repository::{sys_message_channel, sys_message_send_log},
@@ -353,6 +353,30 @@ impl DataPolicy for notice_repo::Entity {
             create_time: Some(|m, v| m.create_time = ActiveValue::Set(Some(v))),
             update_by: Some(|m, v| m.update_by = ActiveValue::Set(Some(v))),
             update_time: Some(|m, v| m.update_time = ActiveValue::Set(Some(v))),
+        })
+    }
+}
+
+/// sys_notice_read:公告已读回执 —— 按 (notice_id,user_id) 表达个人状态,
+/// 不是数据权限;只有 create_time 审计列 → 显式豁免,审计只盖 create_time。
+impl DataPolicy for notice_read_repo::Entity {
+    const CONSTRAINED: bool = false;
+    fn dept_column() -> Option<Self::Column> {
+        None
+    }
+    fn owner_column() -> Option<Self::Column> {
+        None
+    }
+    fn soft_delete() -> Option<(Self::Column, &'static str)> {
+        None
+    }
+    fn audit_columns() -> Option<AuditColumns<Self::ActiveModel>> {
+        Some(AuditColumns {
+            create_dept: None,
+            create_by: None,
+            create_time: Some(|m, v| m.create_time = ActiveValue::Set(Some(v))),
+            update_by: None,
+            update_time: None,
         })
     }
 }

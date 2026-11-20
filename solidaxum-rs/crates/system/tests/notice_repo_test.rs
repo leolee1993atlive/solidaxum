@@ -84,6 +84,8 @@ async fn test_insert_and_delete() {
         notice_type: Some("1".to_string()),
         notice_content: Some("测试内容".to_string()),
         status: None,
+        target_type: None,
+        user_ids: None,
         remark: Some("备注".to_string()),
     };
     let notice = Notice::from_create_bo(bo, &user);
@@ -133,6 +135,8 @@ async fn seed_scope_notices(ds: &DataSource) {
             notice_type: Set("1".into()),
             notice_content: Set(Some(content.into())),
             status: Set("0".into()),
+            target_type: Set("ALL".into()),
+            send_status: Set("0".into()),
             create_dept: Set(Some(create_dept)),
             create_by: Set(Some(create_by)),
             ..Default::default()
@@ -252,6 +256,8 @@ async fn create_by_name_excludes_soft_deleted_users() {
         notice_type: Set("1".into()),
         notice_content: Set(Some("x".into())),
         status: Set("0".into()),
+        target_type: Set("ALL".into()),
+        send_status: Set("0".into()),
         create_dept: Set(Some(101)),
         create_by: Set(Some(410)),
         ..Default::default()

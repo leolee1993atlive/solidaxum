@@ -4,7 +4,7 @@
 //! 这些 DDL/种子只能以**字符串形态**栖身于此 —— 它们描述的是业务表结构,
 //! 由消费方(admin testkit,后续 flow tests)在自己持有的 DataSource 上执行。
 //! 字符串自 `crates/admin/src/testkit.rs` **原样搬家,零语义改动**
-//! (条数 24/19/14 经实数核实,见 `check-no-raw-sql` 白名单锚本文件)。
+//! (条数 25/19/14 经实数核实,见 `check-no-raw-sql` 白名单锚本文件)。
 //!
 //! `execute_raw`/`run_script` 是本 crate 内部合法持连的执行出口(收
 //! `&DataSource`,经 crate 私有的
@@ -13,7 +13,7 @@
 
 use crate::DataSource;
 
-/// 系统表 DDL(24 条,自 admin testkit 原样搬家)。
+/// 系统表 DDL(25 条,自 admin testkit 原样搬家 + 定向公告/已读回执)。
 pub const SYSTEM_TABLE_DDL: &[&str] = &[
     r#"CREATE TABLE IF NOT EXISTS sys_user (
         user_id INTEGER PRIMARY KEY, dept_id INTEGER, user_name TEXT NOT NULL,
@@ -60,8 +60,17 @@ pub const SYSTEM_TABLE_DDL: &[&str] = &[
     r#"CREATE TABLE IF NOT EXISTS sys_user_post (user_id INTEGER NOT NULL, post_id INTEGER NOT NULL)"#,
     r#"CREATE TABLE IF NOT EXISTS sys_notice (
         notice_id INTEGER PRIMARY KEY, notice_title TEXT NOT NULL, notice_type TEXT NOT NULL,
-        notice_content TEXT, status TEXT NOT NULL DEFAULT '0', create_dept INTEGER,
-        create_by INTEGER, create_time TEXT, update_by INTEGER, update_time TEXT, remark TEXT
+        notice_content TEXT, status TEXT NOT NULL DEFAULT '0',
+        target_type TEXT NOT NULL DEFAULT 'ALL', user_ids TEXT,
+        send_status TEXT NOT NULL DEFAULT '0', send_time TEXT,
+        create_dept INTEGER, create_by INTEGER, create_time TEXT,
+        update_by INTEGER, update_time TEXT, remark TEXT
+    )"#,
+    r#"CREATE TABLE IF NOT EXISTS sys_notice_read (
+        id INTEGER PRIMARY KEY, notice_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+        read_flag TEXT NOT NULL DEFAULT '0', read_time TEXT,
+        star_flag TEXT NOT NULL DEFAULT '0', create_time TEXT,
+        UNIQUE (notice_id, user_id)
     )"#,
     r#"CREATE TABLE IF NOT EXISTS sys_client (
         id INTEGER PRIMARY KEY, client_id TEXT NOT NULL, client_key TEXT NOT NULL,
@@ -352,12 +361,12 @@ pub async fn run_script(
 mod tests {
     use super::*;
 
-    /// 条数钉桩:与搬家源 `crates/admin/src/testkit.rs` 的 DDL(24:22 基础
-    /// + 消息渠道/发送日志)/系统种子(19:18 基础 + 三 IM 渠道行)/
+    /// 条数钉桩:与搬家源 `crates/admin/src/testkit.rs` 的 DDL(25:22 基础
+    /// + 消息渠道/发送日志 + 公告已读回执)/系统种子(19:18 基础 + 三 IM 渠道行)/
     /// flow 种子(14)一致。计数经 awk 实数核实。
     #[test]
     fn script_counts_are_pinned() {
-        assert_eq!(SYSTEM_TABLE_DDL.len(), 24, "系统表 DDL 条数");
+        assert_eq!(SYSTEM_TABLE_DDL.len(), 25, "系统表 DDL 条数");
         assert_eq!(SYSTEM_SEED.len(), 19, "系统种子条数");
         assert_eq!(FLOW_SEED.len(), 14, "flow 种子条数");
     }

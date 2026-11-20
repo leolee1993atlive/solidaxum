@@ -12,10 +12,10 @@ use validator::Validate;
 use crate::{
     app::AppState,
     notice::model::notice::{
-        NoticeCreateBo, NoticeListVo, NoticePageQuery, NoticeUpdateBo,
+        NoticeCreateBo, NoticeListVo, NoticeMyQuery, NoticeMyVo,
+        NoticePageQuery, NoticeUpdateBo,
     },
     permission::guard,
-    push::message::PushMessage,
 };
 
 #[tracing::instrument(skip(state), fields(page = ?query.page.page_num, size = ?query.page.page_size))]
@@ -81,34 +81,12 @@ pub async fn create_notice(
     // 审计盖章人取 ctx 的 principal(漏斗 insert 统一盖)
     let ds = state.infra.data_source();
     let ctx = ds.context(app_data::Principal::from(&current_user.0));
-    let notice = state
+    // 新建为草稿,不推送;发布(POST /system/notice/{id}/publish)时才通知。
+    state
         .services
         .notice_service
         .insert_by_bo(&ctx, bo, &current_user)
         .await?;
-
-    let notice_id = notice.notice_id.ok_or_else(|| {
-        AppError::Internal("创建通知公告失败: notice_id 为空".to_string())
-    })?;
-
-    let msg = PushMessage::notice(
-        notice_id,
-        notice.notice_title.clone(),
-        serde_json::json!({
-            "noticeId": notice_id,
-            "noticeTitle": notice.notice_title,
-            "noticeContent": notice
-                .notice_content
-                .clone()
-                .unwrap_or_default(),
-            "noticeType": notice.notice_type,
-        }),
-        Some(format!("/system/notice?noticeId={notice_id}")),
-    );
-    if let Err(e) = state.services.push_hub.try_push_all(msg) {
-        tracing::warn!(notice_id = notice_id, error = %e, "通知广播失败");
-    }
-
     Ok(R::ok())
 }
 
@@ -157,5 +135,76 @@ pub async fn delete_notice(
         })?;
         state.services.notice_service.delete_by_id(&ctx, id).await?;
     }
+    Ok(R::ok())
+}
+
+/// 发布公告(发布时按目标发送 SSE,USER 目标补建回执行)。
+#[tracing::instrument(
+    skip(state),
+    fields(operator = %current_user.0.username, notice_id = id)
+)]
+pub async fn publish_notice(
+    State(state): State<Arc<AppState>>,
+    current_user: CurrentUser,
+    Path(id): Path<i64>,
+) -> Result<R<()>, AppError> {
+    guard::require_permission(&current_user.0, "system:notice:edit")?;
+    let ds = state.infra.data_source();
+    let ctx = ds.context(app_data::Principal::from(&current_user.0));
+    state
+        .services
+        .notice_service
+        .publish(&ctx, id, &current_user)
+        .await?;
+    Ok(R::ok())
+}
+
+/// 当前用户可见的已发布公告(登录即可,无额外权限)。
+#[tracing::instrument(skip(state), fields(user_id = %login_user.user_id))]
+pub async fn list_my_notice(
+    State(state): State<Arc<AppState>>,
+    CurrentUser(login_user): CurrentUser,
+    Query(query): Query<NoticeMyQuery>,
+) -> Result<R<TableDataInfo<NoticeMyVo>>, AppError> {
+    let ds = state.infra.data_source();
+    let ctx = ds.context(app_data::Principal::from(&login_user));
+    let result = state
+        .services
+        .notice_service
+        .my_page(&ctx, login_user.user_id, query)
+        .await?;
+    Ok(R::ok_with_data(result))
+}
+
+/// 标记单条公告已读(幂等)。
+#[tracing::instrument(skip(state), fields(user_id = %login_user.user_id, notice_id = id))]
+pub async fn mark_notice_read(
+    State(state): State<Arc<AppState>>,
+    CurrentUser(login_user): CurrentUser,
+    Path(id): Path<i64>,
+) -> Result<R<()>, AppError> {
+    let ds = state.infra.data_source();
+    let ctx = ds.context(app_data::Principal::from(&login_user));
+    state
+        .services
+        .notice_service
+        .mark_read(&ctx, id, login_user.user_id)
+        .await?;
+    Ok(R::ok())
+}
+
+/// 全部已读:当前用户可见的已发布公告。
+#[tracing::instrument(skip(state), fields(user_id = %login_user.user_id))]
+pub async fn mark_all_notice_read(
+    State(state): State<Arc<AppState>>,
+    CurrentUser(login_user): CurrentUser,
+) -> Result<R<()>, AppError> {
+    let ds = state.infra.data_source();
+    let ctx = ds.context(app_data::Principal::from(&login_user));
+    state
+        .services
+        .notice_service
+        .mark_all_read(&ctx, login_user.user_id)
+        .await?;
     Ok(R::ok())
 }

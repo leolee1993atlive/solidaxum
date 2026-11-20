@@ -154,7 +154,7 @@ impl ServiceContainer {
             dept_service: DeptService::new(infra)
                 .with_scope_cache(scope_cache.clone()),
             post_service: PostService::new(infra),
-            notice_service: NoticeService::new(infra),
+            notice_service: NoticeService::new(infra, push_hub.clone()),
             permission_service: PermissionService::new(infra),
             profile_service: ProfileService::new(infra),
             token_service: TokenService::new(infra),
