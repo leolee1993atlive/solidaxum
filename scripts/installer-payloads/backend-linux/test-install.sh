@@ -214,6 +214,69 @@ assert_eq "dm: 带连字符的 schema 原样搬运" '"solidaxum-demo"' \
   "$(toml_raw_value "$ANSWERS_OUT" db schema)"
 rm -f "$ANSWERS_OUT"
 
+# ---------- answers.toml 生成(HTTPS,首装增强) ----------
+section "write_answers (https self-signed)"
+HTTPS_MODE="self-signed"
+HTTPS_CN_RAW='"10.0.0.8"'
+HTTPS_CERT_RAW=""
+HTTPS_KEY_RAW=""
+
+ANSWERS_OUT="$(mktemp)"
+write_answers "$ANSWERS_OUT"
+assert_eq "https.mode" '"self-signed"' "$(toml_raw_value "$ANSWERS_OUT" server.https mode)"
+assert_eq "https.cn"   '"10.0.0.8"'    "$(toml_raw_value "$ANSWERS_OUT" server.https cn)"
+rm -f "$ANSWERS_OUT"
+
+section "write_answers (https import)"
+HTTPS_MODE="import"
+HTTPS_CN_RAW=""
+HTTPS_CERT_RAW='"/mnt/usb/imported-cert.pem"'
+HTTPS_KEY_RAW='"/mnt/usb/imported-key.pem"'
+
+ANSWERS_OUT="$(mktemp)"
+write_answers "$ANSWERS_OUT"
+assert_eq "import: mode" '"import"' "$(toml_raw_value "$ANSWERS_OUT" server.https mode)"
+assert_eq "import: cert 路径逐字节搬运" '"/mnt/usb/imported-cert.pem"'   "$(toml_raw_value "$ANSWERS_OUT" server.https cert)"
+rm -f "$ANSWERS_OUT"
+
+section "write_answers (https off → 不写节)"
+HTTPS_MODE=""
+HTTPS_CN_RAW=""
+HTTPS_CERT_RAW=""
+HTTPS_KEY_RAW=""
+
+ANSWERS_OUT="$(mktemp)"
+write_answers "$ANSWERS_OUT"
+assert_eq "off: server.https 节不出现" "" "$(toml_raw_value "$ANSWERS_OUT" server.https mode)"
+rm -f "$ANSWERS_OUT"
+
+# ---------- config_https_enabled ----------
+# 单一真相源:读已写的 config.toml,而非向导内存变量 —— 升级场景 writer
+# 不动已有 https,内存态与磁盘可能不同。
+section "config_https_enabled"
+
+HTTPS_CFG_FIXTURE="$(mktemp)"
+printf '[server]
+port = 3000
+[server.https]
+enabled = true
+cert = "certs/server-cert.pem"
+' > "$HTTPS_CFG_FIXTURE"
+assert_ok   "配置 enabled=true → 判定启用" config_https_enabled "$HTTPS_CFG_FIXTURE"
+
+printf '[server]
+port = 3000
+[server.https]
+enabled = false
+' > "$HTTPS_CFG_FIXTURE"
+assert_fail "配置 enabled=false → 判定未启用" config_https_enabled "$HTTPS_CFG_FIXTURE"
+
+printf '[server]
+port = 3000
+' > "$HTTPS_CFG_FIXTURE"
+assert_fail "无 https 节(老配置)→ 判定未启用" config_https_enabled "$HTTPS_CFG_FIXTURE"
+rm -f "$HTTPS_CFG_FIXTURE"
+
 # ---------- schema 名校验 ----------
 # 双引号会截断 SET SCHEMA 的标识符,dm crate 也会拒;在提问处就挡掉体验更好。
 section "schema_is_valid"
@@ -707,6 +770,33 @@ PATH="$WGET_FAIL_BIN"
 assert_fail "无 curl 时走 wget:探活失败时不健康" health_ok 3000
 
 PATH="$SAVED_PATH"
+
+# HTTPS 探活(首装增强):自签证书必须放宽校验(-k)
+CURL_CAPTURE_DIR="$(mktemp -d)"
+printf '#!/bin/sh
+echo "$@" > "%s/args"
+exit 0
+' "$CURL_CAPTURE_DIR" > "$CURL_CAPTURE_DIR/curl"
+chmod +x "$CURL_CAPTURE_DIR/curl"
+
+SAVED_PATH="$PATH"
+PATH="$CURL_CAPTURE_DIR"
+assert_ok "https: curl 探活返回成功" health_ok 8443 https
+PATH="$SAVED_PATH"
+
+CURL_ARGS="$(cat "$CURL_CAPTURE_DIR/args")"
+assert_eq "https: URL 用 https 协议"     "yes" "$(case "$CURL_ARGS" in *https://localhost:8443/api/health*) echo yes;; *) echo no;; esac)"
+assert_eq "https: 自签场景带 -k 放宽校验" "yes" "$(case "$CURL_ARGS" in *-k*) echo yes;; *) echo no;; esac)"
+
+SAVED_PATH="$PATH"
+PATH="$CURL_CAPTURE_DIR"
+health_ok 3000 >/dev/null 2>&1
+PATH="$SAVED_PATH"
+
+CURL_ARGS="$(cat "$CURL_CAPTURE_DIR/args")"
+assert_eq "http(默认):不带 -k" "no" "$(case "$CURL_ARGS" in *-k*) echo yes;; *) echo no;; esac)"
+
+rm -rf "$CURL_CAPTURE_DIR"
 rm -rf "$CURL_OK_BIN" "$CURL_FAIL_BIN" "$WGET_OK_BIN" "$WGET_FAIL_BIN"
 
 # /dev/tcp 兜底分支(无 curl 无 wget)需要一个真实可连接的监听 socket。

@@ -7,6 +7,7 @@
   import { cubicOut } from 'svelte/easing'
   import { LoaderCircle } from '@lucide/svelte'
   import { TOKEN_KEY } from '$lib/api/client.js'
+  import { shouldRedirectToSetup } from '$lib/api/system/setup.js'
   import ConnectionAlert from '$lib/components/ConnectionAlert.svelte'
   import AppSidebar from '$lib/components/layout/AppSidebar.svelte'
   import Header from '$lib/components/layout/Header.svelte'
@@ -98,7 +99,15 @@
     }
     const ok = await auth.ensureLoaded()
     status = ok ? 'authed' : 'guest'
-    if (!ok) goto('/')
+    if (!ok) {
+      goto('/')
+      return
+    }
+    // 首装未初始化 → 强导向导(会话内首次探测后记忆,探测失败不拦截)。
+    // 兜住"书签直进/刷新深链"等绕过登录页的路径。
+    if (await shouldRedirectToSetup()) {
+      goto('/setup')
+    }
   })
 
   const pageTitle = $derived(pathToTitle(auth.navTree, page.url.pathname))

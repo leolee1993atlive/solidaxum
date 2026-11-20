@@ -8,6 +8,16 @@ port = @PORT@
 host = "localhost"
 # static_dir = "./static"   # 可选:启用 SPA 静态托管(放编译后的前端)
 
+# ────────── HTTPS(可选;内网安全合规形态)──────────
+# enabled=false 纯 HTTP(默认)。true 时进程内 rustls 终结 TLS。
+# 自签证书由安装向导生成(3650 天;浏览器会告警,客户端需手动信任,
+# Windows 导入证书存储 / Linux update-ca-certificates)。
+# 也可直接替换 certs/ 下两个 PEM 为自有证书,保持路径不变即可。
+[server.https]
+enabled = @HTTPS_ENABLED@
+cert = "@HTTPS_CERT@"
+key = "@HTTPS_KEY@"
+
 # ────────── 数据库 ──────────
 # db_type: mysql | postgres | sqlite | dm(达梦 DM8,走 ODBC)
 [db]

@@ -31,6 +31,14 @@ aws-config = "1.5"
 aws-sdk-s3 = "1.86"
 axum = "0.8.9"
 axum-extra = { version = "0.12.6", features = ["typed-header"] }
+# HTTPS(首装增强 #1):axum-server 承载 TLS serve;rustls/pemfile 装载证书;
+# rcgen 生成自签证书(默认 ring 后端,锁内已有,不引入新原生构建)。
+# 注意:这几行必须保持在 [patch.crates-io] 之前(见 AGENTS.md)。
+axum-server = { version = "0.7", features = ["tls-rustls"] }
+rustls = "0.23"
+rustls-pemfile = "2"
+rcgen = "0.13"
+time = "0.3"
 tower-http = { version = "0.6.11", features = ["trace", "fs", "cors", "catch-panic"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

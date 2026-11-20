@@ -50,6 +50,7 @@ use system::{
     profile::route::profile_route::profile_route,
     push::route::push_route::push_route,
     role::route::role_route::role_route,
+    setup::route::setup_route::setup_route,
     social::route::social_route::social_route,
     user::route::user_route::user_route,
 };
@@ -245,6 +246,9 @@ pub fn build_router(
             .merge(gen_route())
             .merge(social_route())
             .merge(message_route())
+            // 首装初始化向导:complete 自带「仅超管 + 未完成」守卫,
+            // 键不存在视为已完成(老系统升级不触发向导)。
+            .merge(setup_route())
             //参考实现: 办理人重解析补偿记录查询(outbox 队列表)
             .merge(assignee_sync_route())
             .layer(oper_log_layer.clone()),

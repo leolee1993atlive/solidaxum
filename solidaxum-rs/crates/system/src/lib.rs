@@ -21,6 +21,7 @@ pub mod profile;
 pub mod push;
 pub mod relation;
 pub mod role;
+pub mod setup;
 pub mod social;
 pub mod token;
 pub mod translation;

@@ -36,11 +36,13 @@ const AES_KEY_BYTES: usize = 32;
 /// 渲染并写入 config.toml。
 ///
 /// 文件不存在 → 首次渲染;存在 → 升级更新(保留密钥与手改段)。
+/// 两个模式共用 [`resolve_https`] 物化出来的证书落地参数。
 pub fn write_config(path: &Path, answers: &Answers) -> anyhow::Result<()> {
+    let https = resolve_https(path, answers)?;
     if path.exists() {
-        update_existing(path, answers)
+        update_existing(path, answers, &https)
     } else {
-        let rendered = render_fresh(answers)?;
+        let rendered = render_fresh(answers, &https)?;
         // 自检:渲染结果必须是合法 TOML,否则密码里的特殊字符可能已破坏文件
         toml_edit::DocumentMut::from_str(&rendered)
             .with_context(|| "渲染出的 config.toml 不是合法 TOML(内部错误)")?;
@@ -50,13 +52,137 @@ pub fn write_config(path: &Path, answers: &Answers) -> anyhow::Result<()> {
     }
 }
 
+// ────────── HTTPS 物化 ──────────
+
+/// 证书/私钥落在安装目录下的相对路径(config.toml 同级的 `certs/`)。
+/// 用相对路径而非绝对路径:整目录搬迁后依然有效(服务 CWD = 安装目录)。
+const HTTPS_CERT_REL: &str = "certs/server-cert.pem";
+const HTTPS_KEY_REL: &str = "certs/server-key.pem";
+
+/// answers 的 HTTPS 选择物化到磁盘后的渲染参数。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EffectiveHttps {
+    pub enabled: bool,
+    pub cert: String,
+    pub key: String,
+}
+
+/// 把 `[server.https]` 选择落成证书文件,返回渲染/更新用的生效参数。
+///
+/// - `off`/缺节:不动磁盘,enabled=false(路径仍写默认值,占位无害)。
+/// - `self-signed`:证书文件已存在则**复用不重生成**(重生成会让所有
+///   已信任旧证书的浏览器再次告警);缺失才生成,有效期 3650 天。
+/// - `import`:把用户提供的 PEM 复制进 `certs/`(保持安装目录自包含,
+///   U 盘拔走后服务不受影响)。
+fn resolve_https(
+    config_path: &Path,
+    answers: &Answers,
+) -> anyhow::Result<EffectiveHttps> {
+    let https = &answers.server.https;
+    if https.is_off() {
+        return Ok(EffectiveHttps {
+            enabled: false,
+            cert: HTTPS_CERT_REL.to_string(),
+            key: HTTPS_KEY_REL.to_string(),
+        });
+    }
+
+    let cert_dir = config_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("certs");
+    std::fs::create_dir_all(&cert_dir)
+        .with_context(|| format!("创建证书目录失败: {:?}", cert_dir))?;
+    let cert_p = cert_dir.join("server-cert.pem");
+    let key_p = cert_dir.join("server-key.pem");
+
+    match https.mode.as_str() {
+        "self-signed" => {
+            if !(cert_p.exists() && key_p.exists()) {
+                let cn = https
+                    .cn
+                    .clone()
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or_else(|| "localhost".to_string());
+                let (cert, key) = crate::tls::generate_self_signed(&cn)?;
+                std::fs::write(&cert_p, cert).with_context(|| {
+                    format!("写入自签证书失败: {:?}", cert_p)
+                })?;
+                std::fs::write(&key_p, key)
+                    .with_context(|| format!("写入私钥失败: {:?}", key_p))?;
+                restrict_key_permissions(&key_p);
+            }
+        }
+        "import" => {
+            let src_cert = https
+                .cert
+                .as_deref()
+                .filter(|s| !s.trim().is_empty())
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "https.mode=import 需要在 [server.https].cert 提供证书路径"
+                    )
+                })?;
+            let src_key = https
+                .key
+                .as_deref()
+                .filter(|s| !s.trim().is_empty())
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "https.mode=import 需要在 [server.https].key 提供私钥路径"
+                    )
+                })?;
+            copy_if_changed(Path::new(src_cert), &cert_p)?;
+            copy_if_changed(Path::new(src_key), &key_p)?;
+            restrict_key_permissions(&key_p);
+        }
+        other => anyhow::bail!(
+            "未知的 [server.https].mode: {other}(支持 off / self-signed / import)"
+        ),
+    }
+
+    Ok(EffectiveHttps {
+        enabled: true,
+        cert: HTTPS_CERT_REL.to_string(),
+        key: HTTPS_KEY_REL.to_string(),
+    })
+}
+
+/// 内容一致则跳过复制(升级重跑幂等,不动 mtime)。
+fn copy_if_changed(src: &Path, dst: &Path) -> anyhow::Result<()> {
+    let content = std::fs::read(src)
+        .with_context(|| format!("读取证书/私钥失败: {:?}", src))?;
+    if std::fs::read(dst).is_ok_and(|old| old == content) {
+        return Ok(());
+    }
+    std::fs::write(dst, &content)
+        .with_context(|| format!("写入失败: {:?}", dst))
+}
+
+/// 私钥权限收紧到仅属主可读写(unix;Windows 走 ACL,不动)。
+fn restrict_key_permissions(key: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(
+            key,
+            std::fs::Permissions::from_mode(0o600),
+        );
+    }
+    #[cfg(not(unix))]
+    let _ = key;
+}
+
 // ────────── 首次渲染 ──────────
 
 /// 从内嵌模板渲染出完整 config.toml(含随机生成的密钥)。
-pub fn render_fresh(answers: &Answers) -> anyhow::Result<String> {
+pub(crate) fn render_fresh(
+    answers: &Answers,
+    https: &EffectiveHttps,
+) -> anyhow::Result<String> {
     let jwt_secret = gen_jwt_secret();
     let aes_key = gen_aes_key();
-    let vars = build_vars(answers, &jwt_secret, &aes_key);
+    let vars = build_vars(answers, &jwt_secret, &aes_key, https);
     Ok(render_template(TEMPLATE, &vars))
 }
 
@@ -65,6 +191,7 @@ fn build_vars(
     answers: &Answers,
     jwt_secret: &str,
     aes_key: &str,
+    https: &EffectiveHttps,
 ) -> HashMap<&'static str, String> {
     let mut vars = HashMap::new();
     // 数字占位符:直接转字符串,不加引号
@@ -72,6 +199,10 @@ fn build_vars(
     vars.insert("DB_PORT", answers.db.port.to_string());
     vars.insert("REDIS_PORT", answers.redis.port.to_string());
     vars.insert("REDIS_DB", answers.redis.db.to_string());
+    // HTTPS(首装增强)
+    vars.insert("HTTPS_ENABLED", https.enabled.to_string());
+    vars.insert("HTTPS_CERT", toml_escape(&https.cert));
+    vars.insert("HTTPS_KEY", toml_escape(&https.key));
     // 字符串占位符:TOML 转义后填入(模板里已带引号)
     vars.insert("DB_TYPE", toml_escape(&answers.db.db_type));
     vars.insert("DB_URL", toml_escape(&answers.db.url));
@@ -174,7 +305,11 @@ fn gen_aes_key() -> String {
 
 /// 已有 config.toml 的升级更新:只覆盖脚本收集到的 `[server]/[db]/[redis]`,
 /// 永不碰 `[jwt].secret` 与 `[security].aes_key`,保留所有注释与其他段。
-fn update_existing(path: &Path, answers: &Answers) -> anyhow::Result<()> {
+fn update_existing(
+    path: &Path,
+    answers: &Answers,
+    https: &EffectiveHttps,
+) -> anyhow::Result<()> {
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("读取现有 config.toml 失败: {:?}", path))?;
     let mut doc = toml_edit::DocumentMut::from_str(&raw)
@@ -210,6 +345,22 @@ fn update_existing(path: &Path, answers: &Answers) -> anyhow::Result<()> {
         set_int(redis, "db", answers.redis.db);
     }
 
+    // [server.https]:answers 选了 HTTPS 才写/更新;off/缺节**不动已有
+    // 配置 —— 升级不能把客户手工配好的 HTTPS 关掉。
+    if https.enabled
+        && let Some(server) =
+            doc.get_mut("server").and_then(|v| v.as_table_mut())
+    {
+        let mut t = toml_edit::Table::new();
+        t.insert(
+            "enabled",
+            toml_edit::Item::Value(toml_edit::Value::from(true)),
+        );
+        set_str(&mut t, "cert", &https.cert);
+        set_str(&mut t, "key", &https.key);
+        server.insert("https", toml_edit::Item::Table(t));
+    }
+
     // 注意:不触碰 [jwt].secret 与 [security].aes_key
 
     std::fs::write(path, doc.to_string())
@@ -234,6 +385,15 @@ fn set_int(table: &mut toml_edit::Table, key: &str, val: i32) {
 mod tests {
     use super::*;
 
+    /// off 模式的渲染参数(默认路径占位)
+    fn https_off() -> EffectiveHttps {
+        EffectiveHttps {
+            enabled: false,
+            cert: HTTPS_CERT_REL.to_string(),
+            key: HTTPS_KEY_REL.to_string(),
+        }
+    }
+
     fn sample_answers() -> Answers {
         let raw = r#"
 [server]
@@ -255,9 +415,132 @@ db = 10
     }
 
     #[test]
+    fn fresh_render_with_https_enabled() {
+        let answers = sample_answers();
+        let https = EffectiveHttps {
+            enabled: true,
+            cert: HTTPS_CERT_REL.to_string(),
+            key: HTTPS_KEY_REL.to_string(),
+        };
+        let rendered = render_fresh(&answers, &https).unwrap();
+        let doc = toml_edit::DocumentMut::from_str(&rendered).unwrap();
+        assert_eq!(
+            doc["server"]["https"]["enabled"].as_bool(),
+            Some(true),
+            "enabled 必须是布尔值而不是字符串"
+        );
+        assert_eq!(
+            doc["server"]["https"]["cert"].as_str(),
+            Some("certs/server-cert.pem")
+        );
+    }
+
+    #[test]
+    fn fresh_render_with_https_off_keeps_defaults() {
+        let answers = sample_answers();
+        let rendered = render_fresh(&answers, &https_off()).unwrap();
+        let doc = toml_edit::DocumentMut::from_str(&rendered).unwrap();
+        assert_eq!(doc["server"]["https"]["enabled"].as_bool(), Some(false));
+    }
+
+    /// 自签闭环:write_config → certs/ 两文件落盘 → 装载器可读 →
+    /// config 的 [server.https] 指向它们(即 --write-config 的真实产物)。
+    #[test]
+    fn write_config_self_signed_materializes_certs() {
+        let dir = std::env::temp_dir().join(format!(
+            "solidaxum-writer-https-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let cfg_path = dir.join("config.toml");
+        let answers: Answers = toml::from_str(
+            r#"
+[server]
+port = 8443
+[server.https]
+mode = "self-signed"
+cn = "10.0.0.8"
+[db]
+db_type = "mysql"
+db_name = "solidaxum"
+[redis]
+url = "localhost"
+port = 6379
+db = 0
+"#,
+        )
+        .unwrap();
+
+        write_config(&cfg_path, &answers).unwrap();
+
+        let cert_p = dir.join("certs/server-cert.pem");
+        let key_p = dir.join("certs/server-key.pem");
+        assert!(cert_p.exists() && key_p.exists(), "证书必须物化到 certs/");
+        // 产物可被运行时装载器接受
+        assert!(crate::tls::build_server_config(&cert_p, &key_p).is_ok());
+        let doc = toml_edit::DocumentMut::from_str(
+            &std::fs::read_to_string(&cfg_path).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(doc["server"]["https"]["enabled"].as_bool(), Some(true));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// 升级语义:answers 未选 HTTPS(off/缺节)时,已有 [server.https]
+    /// 原样保留 —— 升级不能把客户配好的 HTTPS 关掉。
+    #[test]
+    fn update_existing_does_not_touch_https_when_off() {
+        let dir = std::env::temp_dir().join(format!(
+            "solidaxum-writer-upd-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let cfg_path = dir.join("config.toml");
+        std::fs::write(
+            &cfg_path,
+            r#"
+[server]
+port = 3000
+[server.https]
+enabled = true
+cert = "my/cert.pem"
+key = "my/key.pem"
+[db]
+db_type = "mysql"
+db_name = "solidaxum"
+[redis]
+url = "localhost"
+port = 6379
+db = 0
+"#,
+        )
+        .unwrap();
+        let answers = sample_answers(); // 无 https 节
+
+        update_existing(&cfg_path, &answers, &https_off()).unwrap();
+
+        let doc = toml_edit::DocumentMut::from_str(
+            &std::fs::read_to_string(&cfg_path).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(doc["server"]["https"]["enabled"].as_bool(), Some(true));
+        assert_eq!(
+            doc["server"]["https"]["cert"].as_str(),
+            Some("my/cert.pem")
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn render_fresh_produces_valid_toml() {
         let answers = sample_answers();
-        let rendered = render_fresh(&answers).unwrap();
+        let rendered = render_fresh(&answers, &https_off()).unwrap();
         let doc = toml_edit::DocumentMut::from_str(&rendered).unwrap();
         assert_eq!(doc["server"]["port"].as_integer(), Some(3000));
         assert_eq!(doc["db"]["db_type"].as_str(), Some("mysql"));
@@ -275,14 +558,17 @@ db = 10
     fn render_fresh_does_not_depend_on_filesystem() {
         // TEMPLATE 是 include_str!,常量,不读文件
         let answers = sample_answers();
-        let _ = render_fresh(&answers).unwrap();
+        let _ = render_fresh(&answers, &https_off()).unwrap();
     }
 
     #[test]
     fn password_with_quotes_backslashes_preserved() {
         // 密码含反斜杠和双引号 —— 渲染后必须仍是合法 TOML 且值正确
         let answers = Answers {
-            server: crate::installer::answers::AnswersServer { port: 3000 },
+            server: crate::installer::answers::AnswersServer {
+                port: 3000,
+                https: Default::default(),
+            },
             db: crate::installer::answers::AnswersDb {
                 db_type: "mysql".into(),
                 url: "h".into(),
@@ -299,7 +585,7 @@ db = 10
                 db: 0,
             },
         };
-        let rendered = render_fresh(&answers).unwrap();
+        let rendered = render_fresh(&answers, &https_off()).unwrap();
         let doc = toml_edit::DocumentMut::from_str(&rendered).unwrap();
         assert_eq!(doc["db"]["password"].as_str(), Some(r#"p@\s"word"#));
     }
@@ -324,7 +610,7 @@ password = ""
 db = 0
 "#;
         let answers: Answers = toml::from_str(raw).unwrap();
-        let rendered = render_fresh(&answers).unwrap();
+        let rendered = render_fresh(&answers, &https_off()).unwrap();
         let doc = toml_edit::DocumentMut::from_str(&rendered).unwrap();
         // password 必须原样保留,不被替换成实际的 jwt secret
         assert_eq!(doc["db"]["password"].as_str(), Some("@JWT_SECRET@"));
@@ -363,7 +649,7 @@ upload_body_limit = "20MB"
         std::fs::write(&path, existing).unwrap();
 
         let answers = sample_answers();
-        update_existing(&path, &answers).unwrap();
+        update_existing(&path, &answers, &https_off()).unwrap();
 
         let updated = std::fs::read_to_string(&path).unwrap();
         let doc = toml_edit::DocumentMut::from_str(&updated).unwrap();
@@ -446,7 +732,7 @@ db = 10
 
     #[test]
     fn render_fresh_writes_dm_and_schema() {
-        let rendered = render_fresh(&dm_answers()).unwrap();
+        let rendered = render_fresh(&dm_answers(), &https_off()).unwrap();
         let doc = toml_edit::DocumentMut::from_str(&rendered).unwrap();
         assert_eq!(doc["db"]["db_type"].as_str(), Some("dm"));
         assert_eq!(doc["db"]["db_name"].as_str(), Some("DM8"));
@@ -456,7 +742,7 @@ db = 10
     /// mysql 场景:安装器总是写这个键,空串必须仍是合法 TOML 且语义 = 未设置。
     #[test]
     fn render_fresh_empty_schema_is_valid_toml() {
-        let rendered = render_fresh(&sample_answers()).unwrap();
+        let rendered = render_fresh(&sample_answers(), &https_off()).unwrap();
         let doc = toml_edit::DocumentMut::from_str(&rendered).unwrap();
         assert_eq!(doc["db"]["schema"].as_str(), Some(""));
     }
@@ -494,7 +780,7 @@ aes_key = "OLD-AES-KEY"
         let path = dir.join("config.toml");
         std::fs::write(&path, existing).unwrap();
 
-        update_existing(&path, &dm_answers()).unwrap();
+        update_existing(&path, &dm_answers(), &https_off()).unwrap();
 
         let doc = toml_edit::DocumentMut::from_str(
             &std::fs::read_to_string(&path).unwrap(),
@@ -542,7 +828,7 @@ secret = "OLD-JWT-SECRET-16chars"
         std::fs::write(&path, existing).unwrap();
 
         // sample_answers() 是 mysql,schema 为空串
-        update_existing(&path, &sample_answers()).unwrap();
+        update_existing(&path, &sample_answers(), &https_off()).unwrap();
 
         let doc = toml_edit::DocumentMut::from_str(
             &std::fs::read_to_string(&path).unwrap(),

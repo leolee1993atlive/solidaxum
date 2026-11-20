@@ -42,6 +42,41 @@ pub struct ServerConfig {
     pub port: i32,
     #[serde(default)]
     pub static_dir: Option<String>,
+    /// HTTPS(首装增强 #1)。整节可缺省 —— 旧配置零迁移,默认纯 HTTP。
+    #[serde(default)]
+    pub https: HttpsConfig,
+}
+
+/// `[server.https]` 段。证书路径相对服务工作目录(即安装目录)。
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct HttpsConfig {
+    /// false = 纯 HTTP(默认);true 时启用进程内 TLS(rustls)。
+    pub enabled: bool,
+    /// 证书链 PEM 路径。
+    #[serde(default = "default_https_cert")]
+    pub cert: String,
+    /// 私钥 PEM 路径。
+    #[serde(default = "default_https_key")]
+    pub key: String,
+}
+
+impl Default for HttpsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            cert: default_https_cert(),
+            key: default_https_key(),
+        }
+    }
+}
+
+fn default_https_cert() -> String {
+    "certs/server-cert.pem".to_string()
+}
+
+fn default_https_key() -> String {
+    "certs/server-key.pem".to_string()
 }
 
 #[derive(Debug, Deserialize)]
@@ -387,5 +422,76 @@ mod app_section_tests {
             err.to_string().contains("count_mode"),
             "错误信息要点名是哪个配置项: {err}"
         );
+    }
+}
+
+#[cfg(test)]
+mod https_tests {
+    use super::*;
+
+    /// 不含 [server.https] 的最小可用配置
+    const MINIMAL_TOML: &str = r#"
+[server]
+host = "localhost"
+port = 3000
+
+[db]
+db_type = "sqlite"
+db_name = "test.db"
+
+[redis]
+url = "localhost"
+port = 6379
+db = 0
+
+[jwt]
+secret = "0123456789abcdef"
+access_ttl = 3600
+refresh_ttl = 7200
+"#;
+
+    fn parse(toml: &str) -> AppConfig {
+        ::config::Config::builder()
+            .add_source(::config::File::from_str(
+                toml,
+                ::config::FileFormat::Toml,
+            ))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap()
+    }
+
+    /// 整节可缺省 —— 已经部署在外的 config.toml 都没有 [server.https],
+    /// 加了新节还要能原样启动,且默认纯 HTTP。
+    #[test]
+    fn https_section_missing_defaults_to_disabled() {
+        let cfg = parse(MINIMAL_TOML);
+        assert!(!cfg.server.https.enabled);
+        assert_eq!(cfg.server.https.cert, "certs/server-cert.pem");
+        assert_eq!(cfg.server.https.key, "certs/server-key.pem");
+    }
+
+    /// 启用 HTTPS 但没写 cert/key —— 走默认相对路径(相对服务工作目录)。
+    #[test]
+    fn https_enabled_uses_default_cert_paths() {
+        let toml = format!("{MINIMAL_TOML}\n[server.https]\nenabled = true\n");
+        let cfg = parse(&toml);
+        assert!(cfg.server.https.enabled);
+        assert_eq!(cfg.server.https.cert, "certs/server-cert.pem");
+        assert_eq!(cfg.server.https.key, "certs/server-key.pem");
+    }
+
+    /// cert/key 显式给出时必须原样保留。
+    #[test]
+    fn https_explicit_cert_and_key_are_honored() {
+        let toml = format!(
+            "{MINIMAL_TOML}\n[server.https]\nenabled = true\n\
+             cert = \"certs/custom.pem\"\nkey = \"certs/custom-key.pem\"\n"
+        );
+        let cfg = parse(&toml);
+        assert!(cfg.server.https.enabled);
+        assert_eq!(cfg.server.https.cert, "certs/custom.pem");
+        assert_eq!(cfg.server.https.key, "certs/custom-key.pem");
     }
 }

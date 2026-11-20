@@ -9,6 +9,9 @@ services:
       - ./config.toml:/app/config.toml:ro
       - ./data:/app/data
       - ./logs:/app/logs
+      # HTTPS(可选):在 config.toml [server.https] enabled=true 后,
+      # 取消下行注释并放入证书(自签/自有证书,路径与配置一致)
+      # - ./certs:/app/certs:ro
     environment:
       RUST_LOG: info
     depends_on:

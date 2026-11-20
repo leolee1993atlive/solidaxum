@@ -2,7 +2,7 @@
 //!
 //! 这是安装脚本层写给二进制的中间文件(用文件而非 CLI 参数,因为 Windows
 //! 进程列表任何进程可读,密码不该进 argv)。只含脚本收集到的三段:
-//! `[server]` / `[db]` / `[redis]`。
+//! `[server]`(含可选 `[server.https]` 子节)/ `[db]` / `[redis]`。
 
 use serde::Deserialize;
 
@@ -17,6 +17,33 @@ pub struct Answers {
 #[derive(Debug, Clone, Deserialize)]
 pub struct AnswersServer {
     pub port: i32,
+    /// HTTPS 选择(首装增强)。旧脚本不写这一节 → mode 默认 "off",
+    /// 行为与从前完全一致(升级兼容)。
+    #[serde(default)]
+    pub https: AnswersHttps,
+}
+
+/// `[server.https]` 安装参数。
+///
+/// 脚本只在用户选择 HTTPS 时写这一节;`mode = "off"` 与缺节等价
+/// (writer 对两者都不触碰已有配置)。
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct AnswersHttps {
+    /// "off" | "self-signed" | "import"
+    pub mode: String,
+    /// self-signed:服务器 IP 或主机名(写入 SAN/CN)。
+    pub cn: Option<String>,
+    /// import:已有证书 PEM 路径(安装时复制进安装目录)。
+    pub cert: Option<String>,
+    /// import:已有私钥 PEM 路径。
+    pub key: Option<String>,
+}
+
+impl AnswersHttps {
+    pub fn is_off(&self) -> bool {
+        self.mode.is_empty() || self.mode == "off"
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -144,6 +171,50 @@ db = 0
         assert_eq!(a.db.db_type, "dm");
         assert_eq!(a.db.db_name, "DM8", "达梦的 db_name 是 ODBC 数据源名");
         assert_eq!(a.db.schema, "RUOYI");
+    }
+
+    /// HTTPS 三模式(首装增强):self-signed 段解析。
+    #[test]
+    fn parse_https_self_signed_answers() {
+        let raw = r#"
+[server]
+port = 3000
+[server.https]
+mode = "self-signed"
+cn = "192.168.1.10"
+[db]
+db_type = "mysql"
+db_name = "solidaxum"
+[redis]
+url = "localhost"
+port = 6379
+db = 0
+"#;
+        let a: Answers = toml::from_str(raw).unwrap();
+        assert!(!a.server.https.is_off());
+        assert_eq!(a.server.https.mode, "self-signed");
+        assert_eq!(a.server.https.cn.as_deref(), Some("192.168.1.10"));
+        assert_eq!(a.server.https.cert, None);
+    }
+
+    /// 旧脚本(不写 https 节)配新二进制:mode 默认 off,升级零迁移。
+    #[test]
+    fn https_section_absent_means_off() {
+        let a: Answers = toml::from_str(
+            r#"
+[server]
+port = 3000
+[db]
+db_type = "mysql"
+db_name = "solidaxum"
+[redis]
+url = "localhost"
+port = 6379
+db = 0
+"#,
+        )
+        .unwrap();
+        assert!(a.server.https.is_off());
     }
 
     /// 旧脚本(不写 schema)配新二进制:必须得空串,而不是解析失败。
