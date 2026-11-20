@@ -1,7 +1,7 @@
 -- 2026-10-31 B5: 消息渠道配置与三 IM 发送日志
 -- 影响面: sys_message_channel(新表+唯一键+种子) + sys_message_send_log(新表+索引)
---          + sys_menu(4 条:页面 + 3 按钮)
--- 是否幂等: 是(CREATE TABLE IF NOT EXISTS + 先删后插种子/菜单)
+--          + sys_menu(6 条:消息渠道页面 + 3 按钮、消息发送历史页面 + 1 按钮)
+-- 是否幂等: 是(CREATE TABLE IF NOT EXISTS;渠道种子 MERGE 只补缺失行不覆盖已配置行,菜单先删后插)
 -- 方言: 达梦;MySQL 见 sql/update/2026-10-31_b5_message_channel.sql
 -- 说明: 与 sql/dm/solidaxum_init.sql 的 B5 段一一对应;全新建库不需要本脚本。
 
@@ -25,11 +25,19 @@ CREATE TABLE IF NOT EXISTS sys_message_channel (
 );
 COMMENT ON TABLE sys_message_channel IS '消息渠道配置表';
 
-DELETE FROM sys_message_channel WHERE channel IN ('DINGTALK', 'WECHAT', 'FEISHU');
-INSERT INTO sys_message_channel (channel_id, channel, channel_name, enabled, del_flag) VALUES
- (1762000000000000001, 'DINGTALK', '钉钉', '0', '0'),
- (1762000000000000002, 'WECHAT', '企业微信', '0', '0'),
- (1762000000000000003, 'FEISHU', '飞书', '0', '0');
+-- 渠道种子:MERGE 只补缺失行,不覆盖已有行的凭据/enabled(先删后插会重置已配置渠道)
+MERGE INTO sys_message_channel t
+USING (
+  SELECT 1762000000000000001 AS channel_id, 'DINGTALK' AS channel, '钉钉' AS channel_name, '0' AS enabled, '0' AS del_flag FROM DUAL
+  UNION ALL
+  SELECT 1762000000000000002, 'WECHAT', '企业微信', '0', '0' FROM DUAL
+  UNION ALL
+  SELECT 1762000000000000003, 'FEISHU', '飞书', '0', '0' FROM DUAL
+) s
+ON (t.channel = s.channel)
+WHEN NOT MATCHED THEN
+  INSERT (channel_id, channel, channel_name, enabled, del_flag)
+  VALUES (s.channel_id, s.channel, s.channel_name, s.enabled, s.del_flag);
 
 CREATE TABLE IF NOT EXISTS sys_message_send_log (
   log_id BIGINT NOT NULL,

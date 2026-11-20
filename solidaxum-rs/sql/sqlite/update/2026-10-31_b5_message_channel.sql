@@ -1,6 +1,6 @@
 -- 2026-10-31 B5: 消息渠道配置与三 IM 发送日志
 -- 影响面: sys_message_channel(新表+唯一键+种子) + sys_message_send_log(新表+索引)
---          + sys_menu(4 条:页面 + 3 按钮)
+--          + sys_menu(6 条:消息渠道页面 + 3 按钮、消息发送历史页面 + 1 按钮)
 -- 是否幂等: 是(CREATE TABLE IF NOT EXISTS + INSERT OR IGNORE/REPLACE)
 -- 方言: SQLite;MySQL 见 sql/update/2026-10-31_b5_message_channel.sql
 -- 说明: 与 sql/sqlite/solidaxum_init.sql 的 B5 段一一对应;全新建库不需要本脚本。

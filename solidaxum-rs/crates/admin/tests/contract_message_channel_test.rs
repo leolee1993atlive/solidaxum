@@ -16,6 +16,7 @@ fn channel_user() -> app_core::model::login_user::LoginUser {
 
 #[tokio::test]
 async fn list_returns_three_channels_in_fixed_order() {
+    let _env = channel_env_guard().await;
     let app = TestApp::new().await;
     let me = channel_user();
     let (s, b) = app.get("/system/messageChannel/list", Some(&me)).await;
@@ -169,6 +170,7 @@ async fn unsupported_channel_rejected() {
 
 #[tokio::test]
 async fn test_endpoint_requires_config() {
+    let _env = channel_env_guard().await;
     let app = TestApp::new().await;
     let me = channel_user();
     let (s, b) = app
@@ -319,4 +321,62 @@ async fn message_log_list_requires_permission() {
     let nobody = user_with_perms(&[]);
     let (s, _b) = app.get("/system/messageLog/list", Some(&nobody)).await;
     assert_eq!(s, 403);
+}
+
+// ---- 环境隔离:渠道 env 回退不得渗入契约测试 ----
+//
+// `resolve_config` 在 DB 行未配齐时回退 DINGTALK_*/WECHAT_*/FEISHU_*/
+// MSG_CHANNEL_BASE_URL 环境变量。开发机若导出过真实凭据:
+//   - `list_returns_three_channels_in_fixed_order` 的 source=="none" 断言失配;
+//   - `test_endpoint_requires_config` 会真的请求开放平台取 token(出网)。
+// 因此对依赖"未配置"前提的用例,在测试进程内清空这批变量、结束后恢复。
+// std::env::{remove_var,set_var} 在 edition 2024 为 unsafe:临界区由下方
+// 全文件共享的异步互斥锁保护,持锁期间同进程其他用例不会读写这批变量,
+// 故无数据竞争;恢复在 Drop 中完成,panic 路径同样归还。
+
+static CHANNEL_ENV_LOCK: tokio::sync::Mutex<()> =
+    tokio::sync::Mutex::const_new(());
+
+const CHANNEL_ENV_VARS: [&str; 9] = [
+    "DINGTALK_CLIENT_ID",
+    "DINGTALK_CLIENT_SECRET",
+    "DINGTALK_AGENT_ID",
+    "WECHAT_CORP_ID",
+    "WECHAT_CORP_SECRET",
+    "WECHAT_AGENT_ID",
+    "FEISHU_APP_ID",
+    "FEISHU_APP_SECRET",
+    "MSG_CHANNEL_BASE_URL",
+];
+
+struct ChannelEnvGuard {
+    saved: Vec<(String, Option<String>)>,
+    _lock: tokio::sync::MutexGuard<'static, ()>,
+}
+
+/// 持锁清空渠道环境变量;Drop 时恢复原值。必须全程持有(跨 await),
+/// 否则并行的另一个用例可能在"清空前读到真值"。
+async fn channel_env_guard() -> ChannelEnvGuard {
+    let lock = CHANNEL_ENV_LOCK.lock().await;
+    let saved = CHANNEL_ENV_VARS
+        .iter()
+        .map(|k| ((*k).to_string(), std::env::var(k).ok()))
+        .collect();
+    for k in CHANNEL_ENV_VARS {
+        // SAFETY: 持 CHANNEL_ENV_LOCK,同进程内无其他代码并发读写这批变量。
+        unsafe { std::env::remove_var(k) };
+    }
+    ChannelEnvGuard { saved, _lock: lock }
+}
+
+impl Drop for ChannelEnvGuard {
+    fn drop(&mut self) {
+        for (k, v) in &self.saved {
+            // SAFETY: 与清空同一临界区(锁随本结构存活),恢复期间无并发读写。
+            match v {
+                Some(val) => unsafe { std::env::set_var(k, val) },
+                None => unsafe { std::env::remove_var(k) },
+            }
+        }
+    }
 }

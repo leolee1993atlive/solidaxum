@@ -11,7 +11,10 @@ use system::notice::repository::{
     notice_read_repo::{
         Column as ReadColumn, Entity as ReadEntity, Model as ReadModel,
     },
-    notice_repo::{Column as NoticeColumn, Entity as NoticeEntity},
+    notice_repo::{
+        ActiveModel as NoticeActiveModel, Column as NoticeColumn,
+        Entity as NoticeEntity,
+    },
 };
 
 fn user_id_301() -> app_core::model::login_user::LoginUser {
@@ -343,4 +346,72 @@ async fn republish_published_notice_rejected() {
         body["msg"].as_str().unwrap_or_default().contains("已发布"),
         "{body}"
     );
+}
+
+/// orderByColumn=sendTime 必须真正按 send_time 排序。parse_order 曾缺
+/// send_time 分支,落到 notice_id,页面"发送时间"排序因此无效。
+#[tokio::test]
+async fn my_list_orders_by_send_time_when_requested() {
+    use app_data::sea_orm::ActiveValue::Set;
+    use chrono::{TimeZone, Utc};
+
+    let app = TestApp::new().await;
+    let id_a = create_notice(&app, "排序-早", "ALL", None).await;
+    let id_b = create_notice(&app, "排序-晚", "ALL", None).await;
+    for id in [id_a, id_b] {
+        let (status, body) = app
+            .post(
+                &format!("/system/notice/{id}/publish"),
+                json!({}),
+                Some(&super_admin()),
+            )
+            .await;
+        assert_ok(status, &body);
+    }
+
+    // 直接钉死 send_time,避免两次发布同刻导致次序不确定。
+    let ds = app.state.infra.data_source();
+    let ctx = ds.system_context();
+    let t_a = Utc.with_ymd_and_hms(2026, 11, 1, 10, 0, 0).unwrap();
+    let t_b = Utc.with_ymd_and_hms(2026, 11, 2, 10, 0, 0).unwrap();
+    for (id, t) in [(id_a, t_a), (id_b, t_b)] {
+        ctx.update_without_row_scope(NoticeActiveModel {
+            notice_id: Set(id),
+            send_time: Set(Some(t)),
+            ..Default::default()
+        })
+        .await
+        .expect("钉 send_time");
+    }
+
+    let rows = my_rows_ordered(&app, &user_id_301(), "sendTime", "asc").await;
+    let ids: Vec<i64> = rows.iter().map(id_i64_of_notice).collect();
+    assert_eq!(ids, vec![id_a, id_b], "sendTime asc 应早→晚: {rows:?}");
+
+    let rows = my_rows_ordered(&app, &user_id_301(), "sendTime", "desc").await;
+    let ids: Vec<i64> = rows.iter().map(id_i64_of_notice).collect();
+    assert_eq!(ids, vec![id_b, id_a], "sendTime desc 应晚→早: {rows:?}");
+}
+
+async fn my_rows_ordered(
+    app: &TestApp,
+    user: &app_core::model::login_user::LoginUser,
+    column: &str,
+    dir: &str,
+) -> Vec<Value> {
+    let (status, body) = app
+        .get(
+            &format!(
+                "/system/notice/my?pageNum=1&pageSize=100\
+                 &orderByColumn={column}&isAsc={dir}"
+            ),
+            Some(user),
+        )
+        .await;
+    assert_ok(status, &body);
+    body["data"]["rows"].as_array().cloned().unwrap_or_default()
+}
+
+fn id_i64_of_notice(v: &Value) -> i64 {
+    id_i64(&v["noticeId"])
 }
