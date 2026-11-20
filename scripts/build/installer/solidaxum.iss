@@ -533,6 +533,7 @@ begin
     // HTTPS 证书同样以现有目录为起点:writer 对已存在的自签证书不重生成,
     // 升级才不会让所有已信任的客户端重新信任一次。
     // (源提交漏了这一步,与 Linux 侧一并补上)
+    CreateDir(ExpandConstant('{tmp}\certs'));
     if FileExists(ExistingDir + '\certs\server-cert.pem') then
       CopyFile(ExistingDir + '\certs\server-cert.pem',
                ExpandConstant('{tmp}\certs\server-cert.pem'), False);
