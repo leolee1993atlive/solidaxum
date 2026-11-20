@@ -1,7 +1,7 @@
 -- 2026-10-31 B5: 消息渠道配置与三 IM 发送日志
 -- 影响面: sys_message_channel(新表+唯一键+种子) + sys_message_send_log(新表+索引)
 --          + sys_menu(6 条:消息渠道页面 + 3 按钮、消息发送历史页面 + 1 按钮)
--- 是否幂等: 是(CREATE TABLE IF NOT EXISTS + REPLACE INTO 种子/菜单)
+-- 是否幂等: 是(CREATE TABLE IF NOT EXISTS;渠道种子 INSERT IGNORE 不覆盖已配置行,菜单 REPLACE INTO 先删后插)
 -- 方言: MySQL;其他方言见 sql/{dm,postgresql,sqlite}/update/
 -- 说明: 与 sql/solidaxum_init.sql 的 B5 段一一对应;全新建库不需要本脚本。
 SET NAMES utf8mb4;
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS sys_message_channel (
   UNIQUE KEY uk_sys_message_channel_channel (channel)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='消息渠道配置表';
 
-REPLACE INTO sys_message_channel (channel_id, channel, channel_name, enabled, del_flag) VALUES
+INSERT IGNORE INTO sys_message_channel (channel_id, channel, channel_name, enabled, del_flag) VALUES
  (1762000000000000001, 'DINGTALK', '钉钉', '0', '0'),
  (1762000000000000002, 'WECHAT', '企业微信', '0', '0'),
  (1762000000000000003, 'FEISHU', '飞书', '0', '0');

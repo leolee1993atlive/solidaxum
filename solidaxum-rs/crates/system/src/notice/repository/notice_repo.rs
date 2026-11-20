@@ -332,6 +332,7 @@ fn parse_order(order_by: &str) -> (Column, Order) {
         "notice_id" => Column::NoticeId,
         "notice_title" => Column::NoticeTitle,
         "notice_type" => Column::NoticeType,
+        "send_time" => Column::SendTime,
         "create_time" => Column::CreateTime,
         _ => Column::NoticeId,
     };

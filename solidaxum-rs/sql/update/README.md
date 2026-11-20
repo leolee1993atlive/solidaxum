@@ -19,3 +19,8 @@
   (非幂等 ALTER 加列;已执行则跳过,重复执行会报列已存在)
 - `2026-10-31_b5_notice_target.sql` — B5 定向公告与已读回执
   (非幂等 ALTER 加列;CREATE TABLE IF NOT EXISTS 段可重复执行)
+
+已知限制:
+- `sys_notice.send_status` 列注释含 `2 已撤回`,但**撤回功能当前未实现**:
+  后端没有撤回接口与写路径,`2` 仅为与 RuoYi 对齐的预留取值,
+  请勿在文档/界面中当作可用能力宣传。
