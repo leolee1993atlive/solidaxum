@@ -212,7 +212,8 @@ pub const SYSTEM_SEED: &[&str] = &[
         (1, '用户初始密码', 'sys.user.initPassword', '123456', 'Y'),
         (2, '是否开启注册', 'sys.account.registerUser', 'false', 'Y'),
         (3, '系统信息-系统标题', 'sys.title', 'SolidAxum', 'Y'),
-        (4, '系统信息-系统图标', 'sys.icon', '', 'Y')"#,
+        (4, '系统信息-系统图标', 'sys.icon', '', 'Y'),
+        (5, '系统初始化-完成标记', 'sys.setup.completed', 'false', 'Y')"#,
     // 三 IM 渠道初始行(默认停用;密钥留空,页面保存时写入)
     r#"INSERT INTO sys_message_channel (channel_id, channel, channel_name, enabled, del_flag) VALUES
         (1762000000000000001, 'DINGTALK', '钉钉', '0', '0'),

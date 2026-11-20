@@ -6,6 +6,7 @@
   import { Input } from '$lib/components/ui/input/index.js'
   import { useAuth } from '$lib/context/auth.svelte.js'
   import { authApi } from '$lib/api/auth.js'
+  import { shouldRedirectToSetup } from '$lib/api/system/setup.js'
   import { toast } from 'svelte-sonner'
   import { LoaderCircle, LogIn } from '@lucide/svelte'
 
@@ -52,6 +53,11 @@
     })
     if (success) {
       toast.success('登录成功!')
+      // 首装未初始化 → 优先于 redirectTo 进向导(探测失败不阻塞登录)
+      if (await shouldRedirectToSetup()) {
+        goto('/setup')
+        return
+      }
       goto(redirectTo)
     }
   }
