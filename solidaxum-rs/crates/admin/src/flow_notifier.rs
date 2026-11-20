@@ -8,11 +8,19 @@ use system::push::{message::PushMessage, sse::PushHub};
 #[derive(Clone)]
 pub struct PushHubFlowNotifier {
     hub: PushHub,
+    /// 可选发送日志数据源;未注入时只推 SSE 不落日志(兼容既有装配)。
+    log_ds: Option<Arc<app_data::DataSource>>,
 }
 
 impl PushHubFlowNotifier {
     pub fn new(hub: PushHub) -> Self {
-        Self { hub }
+        Self { hub, log_ds: None }
+    }
+
+    /// 注入数据源后,每次流程通知额外写一行 `flow_notify` SSE 成功日志。
+    pub fn with_send_log(mut self, ds: Arc<app_data::DataSource>) -> Self {
+        self.log_ds = Some(ds);
+        self
     }
 }
 
@@ -38,6 +46,18 @@ impl FlowNotifier for PushHubFlowNotifier {
             );
             self.hub.push_to_user(uid, msg);
         }
+        if let Some(ds) = &self.log_ds {
+            let ctx = ds.system_context();
+            system::push::push_service::write_sse_log(
+                &ctx,
+                "flow_notify",
+                None,
+                None,
+                user_ids,
+                message,
+            )
+            .await;
+        }
         Ok(())
     }
 }
@@ -45,4 +65,12 @@ impl FlowNotifier for PushHubFlowNotifier {
 /// 便于测试注入自定义 notifier。
 pub fn arc_notifier(hub: PushHub) -> Arc<dyn FlowNotifier> {
     Arc::new(PushHubFlowNotifier::new(hub))
+}
+
+/// 带发送日志的 notifier(生产装配用)。
+pub fn arc_notifier_with_send_log(
+    hub: PushHub,
+    ds: Arc<app_data::DataSource>,
+) -> Arc<dyn FlowNotifier> {
+    Arc::new(PushHubFlowNotifier::new(hub).with_send_log(ds))
 }

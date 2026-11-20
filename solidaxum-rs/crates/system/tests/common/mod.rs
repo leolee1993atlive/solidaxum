@@ -14,7 +14,7 @@ use system::{
     dict::repository::{dict_data_repo, dict_type_repo},
     menu::repository::menu_repo,
     message::repository::message_repo,
-    notice::repository::notice_repo,
+    notice::repository::{notice_read_repo, notice_repo},
     oss::repository::{oss_config_repo, oss_repo},
     post::repository::post_repo,
     relation::{role_dept, role_menu, user_post, user_role},
@@ -69,6 +69,9 @@ pub async fn setup_schema_and_seeds(ds: &DataSource) {
     ds.create_table(notice_repo::Entity)
         .await
         .expect("建 sys_notice 表");
+    ds.create_table(notice_read_repo::Entity)
+        .await
+        .expect("建 sys_notice_read 表");
     ds.create_table(dict_type_repo::Entity)
         .await
         .expect("建 sys_dict_type 表");
@@ -324,6 +327,8 @@ pub async fn setup_schema_and_seeds(ds: &DataSource) {
             notice_type: Set(notice_type.into()),
             notice_content: Set(Some(content.into())),
             status: Set("0".into()),
+            target_type: Set("ALL".into()),
+            send_status: Set("0".into()),
             ..Default::default()
         })
         .await

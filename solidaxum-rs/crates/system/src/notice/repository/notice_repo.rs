@@ -32,14 +32,17 @@ use app_data::{
     sea_orm::{
         self, ActiveModelBehavior,
         ActiveValue::{NotSet, Set},
-        ColumnTrait, DateTimeUtc, DeriveEntityModel, DerivePrimaryKey,
-        DeriveRelation, EntityTrait, EnumIter, Order, PrimaryKeyTrait,
-        QueryFilter, QueryOrder,
+        ColumnTrait, Condition, DateTimeUtc, DeriveEntityModel,
+        DerivePrimaryKey, DeriveRelation, EntityTrait, EnumIter, Order,
+        PrimaryKeyTrait, QueryFilter, QueryOrder,
     },
 };
 
 use crate::{
-    notice::model::notice::{Notice, NoticeListVo, NoticePageQuery},
+    notice::model::notice::{
+        Notice, NoticeListVo, NoticePageQuery, SEND_STATUS_PUBLISHED,
+        TARGET_USER,
+    },
     user::repository::user_repo,
 };
 
@@ -52,6 +55,10 @@ pub struct Model {
     pub notice_type: String,
     pub notice_content: Option<String>,
     pub status: String,
+    pub target_type: String,
+    pub user_ids: Option<String>,
+    pub send_status: String,
+    pub send_time: Option<DateTimeUtc>,
     pub create_dept: Option<i64>,
     pub create_by: Option<i64>,
     pub create_time: Option<DateTimeUtc>,
@@ -73,6 +80,10 @@ impl From<&Model> for Notice {
             notice_type: m.notice_type.clone(),
             notice_content: m.notice_content.clone(),
             status: m.status.clone(),
+            target_type: m.target_type.clone(),
+            user_ids: m.user_ids.clone(),
+            send_status: m.send_status.clone(),
+            send_time: m.send_time,
             remark: m.remark.clone(),
             base_entity: BaseEntity {
                 create_dept: m.create_dept,
@@ -97,6 +108,10 @@ fn notice_to_active_model(notice: &Notice) -> ActiveModel {
         notice_type: Set(notice.notice_type.clone()),
         notice_content: Set(notice.notice_content.clone()),
         status: Set(notice.status.clone()),
+        target_type: Set(notice.target_type.clone()),
+        user_ids: Set(notice.user_ids.clone()),
+        send_status: Set(notice.send_status.clone()),
+        send_time: Set(notice.send_time),
         create_dept: Set(notice.base_entity.create_dept),
         create_by: Set(notice.base_entity.create_by),
         create_time: Set(notice.base_entity.create_time),
@@ -246,6 +261,69 @@ impl NoticeRepository {
 
         Ok(TableDataInfo::from_page_rows(&page, rows))
     }
+
+    /// 当前用户可见的已发布公告分页(已读回执由服务层合并)。
+    ///
+    /// 可见性规则:`send_status='1'` 且(`target_type='ALL'` 或当前用户
+    /// 命中 `user_ids` CSV)。公告是全站内容,读路径同豁免裁定。
+    pub async fn select_visible_page(
+        &self,
+        ctx: &DataContext<'_>,
+        user_id: i64,
+        page_no: u64,
+        page_size: u64,
+        order_by: &str,
+    ) -> Result<TableDataInfo<Notice>, DataError> {
+        let (order_col, order_dir) = parse_order(order_by);
+        let page = ctx
+            .select(
+                Entity::find()
+                    .filter(Column::SendStatus.eq(SEND_STATUS_PUBLISHED))
+                    .filter(visible_condition(user_id))
+                    .order_by(order_col, order_dir),
+            )
+            .without_row_scope()
+            .page(page_no as i64, page_size as i64)
+            .await?;
+        let rows: Vec<Notice> = page.rows.iter().map(Notice::from).collect();
+        Ok(TableDataInfo::from_page_rows(&page, rows))
+    }
+
+    /// 当前用户可见的已发布公告 ID 列表(全部已读用)。
+    pub async fn select_visible_ids(
+        &self,
+        ctx: &DataContext<'_>,
+        user_id: i64,
+    ) -> Result<Vec<i64>, DataError> {
+        let rows = ctx
+            .select(
+                Entity::find()
+                    .filter(Column::SendStatus.eq(SEND_STATUS_PUBLISHED))
+                    .filter(visible_condition(user_id)),
+            )
+            .without_row_scope()
+            .all()
+            .await?;
+        Ok(rows.into_iter().map(|m| m.notice_id).collect())
+    }
+}
+
+/// 公告对指定用户的可见条件(可移植 LIKE 组合,兼容 SQLite):
+///   target_type='ALL'
+///   OR (target_type='USER' AND user_ids 精确/开头/结尾/中间命中)
+pub fn visible_condition(user_id: i64) -> Condition {
+    let uid = user_id.to_string();
+    Condition::any().add(Column::TargetType.eq("ALL")).add(
+        Condition::all()
+            .add(Column::TargetType.eq(TARGET_USER))
+            .add(
+                Condition::any()
+                    .add(Column::UserIds.eq(uid.clone()))
+                    .add(Column::UserIds.like(format!("{uid},%")))
+                    .add(Column::UserIds.like(format!("%,{uid}")))
+                    .add(Column::UserIds.like(format!("%,{uid},%"))),
+            ),
+    )
 }
 
 fn parse_order(order_by: &str) -> (Column, Order) {

@@ -346,13 +346,12 @@ where
 mod tests {
     use std::sync::Arc;
 
+    use super::{ScopeDecl, apply_policy, should_estimate};
     use crate::{
         principal::{Principal, ScopeFilter},
         sea_orm::EntityTrait,
         testing::{self, FixedResolver, sandbox},
     };
-
-    use super::{ScopeDecl, apply_policy, should_estimate};
 
     /// 谓词语义锚:三个条件按真值表组合。谓词里的 `!row_scoped`(或
     /// `baseline_available`)被去掉,对应行就会从 false 变 true,本测试即失败。

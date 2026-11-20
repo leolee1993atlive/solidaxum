@@ -4,7 +4,7 @@
 //! 这些 DDL/种子只能以**字符串形态**栖身于此 —— 它们描述的是业务表结构,
 //! 由消费方(admin testkit,后续 flow tests)在自己持有的 DataSource 上执行。
 //! 字符串自 `crates/admin/src/testkit.rs` **原样搬家,零语义改动**
-//! (条数 22/18/14 经实数核实,见 `check-no-raw-sql` 白名单锚本文件)。
+//! (条数 25/19/14 经实数核实,见 `check-no-raw-sql` 白名单锚本文件)。
 //!
 //! `execute_raw`/`run_script` 是本 crate 内部合法持连的执行出口(收
 //! `&DataSource`,经 crate 私有的
@@ -13,11 +13,12 @@
 
 use crate::DataSource;
 
-/// 系统表 DDL(22 条,自 admin testkit 原样搬家)。
+/// 系统表 DDL(25 条,自 admin testkit 原样搬家 + 定向公告/已读回执)。
 pub const SYSTEM_TABLE_DDL: &[&str] = &[
     r#"CREATE TABLE IF NOT EXISTS sys_user (
         user_id INTEGER PRIMARY KEY, dept_id INTEGER, user_name TEXT NOT NULL,
         nick_name TEXT NOT NULL, user_type TEXT, email TEXT, phone_number TEXT,
+        wechat_user_id TEXT, dingtalk_user_id TEXT, feishu_user_id TEXT,
         gender TEXT, avatar INTEGER, password TEXT NOT NULL, status TEXT NOT NULL,
         del_flag TEXT NOT NULL, login_ip TEXT, login_date TEXT, create_dept INTEGER,
         create_by INTEGER, create_time TEXT, update_by INTEGER, update_time TEXT,
@@ -59,8 +60,17 @@ pub const SYSTEM_TABLE_DDL: &[&str] = &[
     r#"CREATE TABLE IF NOT EXISTS sys_user_post (user_id INTEGER NOT NULL, post_id INTEGER NOT NULL)"#,
     r#"CREATE TABLE IF NOT EXISTS sys_notice (
         notice_id INTEGER PRIMARY KEY, notice_title TEXT NOT NULL, notice_type TEXT NOT NULL,
-        notice_content TEXT, status TEXT NOT NULL DEFAULT '0', create_dept INTEGER,
-        create_by INTEGER, create_time TEXT, update_by INTEGER, update_time TEXT, remark TEXT
+        notice_content TEXT, status TEXT NOT NULL DEFAULT '0',
+        target_type TEXT NOT NULL DEFAULT 'ALL', user_ids TEXT,
+        send_status TEXT NOT NULL DEFAULT '0', send_time TEXT,
+        create_dept INTEGER, create_by INTEGER, create_time TEXT,
+        update_by INTEGER, update_time TEXT, remark TEXT
+    )"#,
+    r#"CREATE TABLE IF NOT EXISTS sys_notice_read (
+        id INTEGER PRIMARY KEY, notice_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+        read_flag TEXT NOT NULL DEFAULT '0', read_time TEXT,
+        star_flag TEXT NOT NULL DEFAULT '0', create_time TEXT,
+        UNIQUE (notice_id, user_id)
     )"#,
     r#"CREATE TABLE IF NOT EXISTS sys_client (
         id INTEGER PRIMARY KEY, client_id TEXT NOT NULL, client_key TEXT NOT NULL,
@@ -139,9 +149,25 @@ pub const SYSTEM_TABLE_DDL: &[&str] = &[
         invoke_target TEXT NOT NULL, job_params TEXT, job_message TEXT,
         status TEXT NOT NULL, exception_info TEXT, start_time TEXT,
         stop_time TEXT, create_time TEXT)"#,
+    // 消息渠道配置(三 IM;密钥 AES 落库,短信/APP 不在此表)
+    r#"CREATE TABLE IF NOT EXISTS sys_message_channel (
+        channel_id INTEGER PRIMARY KEY, channel TEXT NOT NULL UNIQUE,
+        channel_name TEXT NOT NULL, enabled TEXT NOT NULL DEFAULT '0',
+        client_id TEXT, client_secret TEXT, agent_id TEXT, agent_secret TEXT,
+        base_url TEXT, domain TEXT, del_flag TEXT NOT NULL DEFAULT '0',
+        create_dept INTEGER, create_by INTEGER, create_time TEXT,
+        update_by INTEGER, update_time TEXT, remark TEXT)"#,
+    // 发送日志(insert-only)
+    r#"CREATE TABLE IF NOT EXISTS sys_message_send_log (
+        log_id INTEGER PRIMARY KEY, tenant_id TEXT DEFAULT '000000',
+        batch_id TEXT, biz_type TEXT, biz_id TEXT, channel TEXT NOT NULL,
+        recipient_user_ids TEXT, content TEXT, status TEXT NOT NULL,
+        skip_reason TEXT, error_message TEXT, provider_response TEXT,
+        create_dept INTEGER, create_by INTEGER, create_time TEXT,
+        update_by INTEGER, update_time TEXT)"#,
 ];
 
-/// 系统种子(18 条,自 admin testkit 原样搬家)。
+/// 系统种子(19 条,自 admin testkit 原样搬家)。
 pub const SYSTEM_SEED: &[&str] = &[
     r#"INSERT INTO sys_dept (dept_id, parent_id, ancestors, dept_name, dept_category, leader, order_num, status, del_flag) VALUES
         (100, 0, '0', '总部', NULL, 1761100000000000001, 0, '0', '0'),
@@ -187,6 +213,11 @@ pub const SYSTEM_SEED: &[&str] = &[
         (2, '是否开启注册', 'sys.account.registerUser', 'false', 'Y'),
         (3, '系统信息-系统标题', 'sys.title', 'SolidAxum', 'Y'),
         (4, '系统信息-系统图标', 'sys.icon', '', 'Y')"#,
+    // 三 IM 渠道初始行(默认停用;密钥留空,页面保存时写入)
+    r#"INSERT INTO sys_message_channel (channel_id, channel, channel_name, enabled, del_flag) VALUES
+        (1762000000000000001, 'DINGTALK', '钉钉', '0', '0'),
+        (1762000000000000002, 'WECHAT', '企业微信', '0', '0'),
+        (1762000000000000003, 'FEISHU', '飞书', '0', '0')"#,
     // 字典模块种子(dictType 用合法格式 ^[a-z][a-z0-9_]*$)
     r#"INSERT INTO sys_dict_type (dict_id, dict_name, dict_type, remark) VALUES
         (8001, '通用状态', 'sys_normal_disable', '通用状态字典'),
@@ -330,12 +361,13 @@ pub async fn run_script(
 mod tests {
     use super::*;
 
-    /// 条数钉桩:与搬家源 `crates/admin/src/testkit.rs` 的 DDL(22)/
-    /// 系统种子(18)/flow 种子(14)一致。计数经 awk 实数核实。
+    /// 条数钉桩:与搬家源 `crates/admin/src/testkit.rs` 的 DDL(25:22 基础
+    /// + 消息渠道/发送日志 + 公告已读回执)/系统种子(19:18 基础 + 三 IM 渠道行)/
+    /// flow 种子(14)一致。计数经 awk 实数核实。
     #[test]
     fn script_counts_are_pinned() {
-        assert_eq!(SYSTEM_TABLE_DDL.len(), 22, "系统表 DDL 条数");
-        assert_eq!(SYSTEM_SEED.len(), 18, "系统种子条数");
+        assert_eq!(SYSTEM_TABLE_DDL.len(), 25, "系统表 DDL 条数");
+        assert_eq!(SYSTEM_SEED.len(), 19, "系统种子条数");
         assert_eq!(FLOW_SEED.len(), 14, "flow 种子条数");
     }
 

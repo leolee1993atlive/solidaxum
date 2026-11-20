@@ -88,6 +88,9 @@ pub struct Model {
     pub email: Option<String>,
     #[sea_orm(column_name = "phone_number")]
     pub phone_number: Option<String>,
+    pub wechat_user_id: Option<String>,
+    pub dingtalk_user_id: Option<String>,
+    pub feishu_user_id: Option<String>,
     pub gender: Option<String>,
     pub avatar: Option<i64>,
     pub password: String,
@@ -119,6 +122,9 @@ impl From<&Model> for User {
             user_type: m.user_type.clone(),
             email: m.email.clone(),
             phone_number: m.phone_number.clone(),
+            wechat_user_id: m.wechat_user_id.clone(),
+            dingtalk_user_id: m.dingtalk_user_id.clone(),
+            feishu_user_id: m.feishu_user_id.clone(),
             gender: m.gender.clone(),
             avatar: m.avatar,
             status: m.status.clone(),
@@ -153,6 +159,9 @@ fn user_to_active_model(user: &User) -> ActiveModel {
         user_type: Set(user.user_type.clone()),
         email: Set(user.email.clone()),
         phone_number: Set(user.phone_number.clone()),
+        wechat_user_id: Set(user.wechat_user_id.clone()),
+        dingtalk_user_id: Set(user.dingtalk_user_id.clone()),
+        feishu_user_id: Set(user.feishu_user_id.clone()),
         gender: Set(user.gender.clone()),
         avatar: Set(user.avatar),
         password: Set(user.password.clone()),
@@ -309,6 +318,59 @@ impl UserRepository {
             .one()
             .await?;
         Ok(model.as_ref().map(User::from))
+    }
+
+    /// 批量按 user_id 读取完整用户行(推送编排用)。
+    ///
+    /// 豁免裁定:消息推送是系统级跨部门编排(案件经办人可能跨科室),无
+    /// Java @DataPermission 锚 → `without_row_scope()`;软删过滤照施加。
+    pub async fn select_by_ids_unscoped(
+        &self,
+        ctx: &DataContext<'_>,
+        user_ids: &[i64],
+    ) -> Result<Vec<User>, DataError> {
+        if user_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let models = ctx
+            .select(
+                Entity::find().filter(Column::UserId.is_in(user_ids.to_vec())),
+            )
+            .without_row_scope()
+            .all()
+            .await?;
+        Ok(models.iter().map(User::from).collect())
+    }
+
+    /// 回写渠道平台用户 ID(手机号→平台 ID 解析成功后落库)。
+    ///
+    /// 写路径不受行级范围(同 [`Self::update_by_id`]),只更新平台 ID 列,
+    /// 不触碰其他字段;0 行/已删 → NotFound 由漏斗抛错。
+    pub async fn update_platform_user_id(
+        &self,
+        ctx: &DataContext<'_>,
+        user_id: i64,
+        channel: &str,
+        platform_id: &str,
+    ) -> Result<(), DataError> {
+        let mut active = ActiveModel {
+            user_id: Set(user_id),
+            ..Default::default()
+        };
+        match channel {
+            "WECHAT" => {
+                active.wechat_user_id = Set(Some(platform_id.to_string()))
+            }
+            "DINGTALK" => {
+                active.dingtalk_user_id = Set(Some(platform_id.to_string()))
+            }
+            "FEISHU" => {
+                active.feishu_user_id = Set(Some(platform_id.to_string()))
+            }
+            _ => return Ok(()),
+        }
+        ctx.update_without_row_scope(active).await?;
+        Ok(())
     }
 
     /// 统计部门下正常状态的用户数量(用于 dept 删除/停用守卫)。

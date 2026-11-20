@@ -26,7 +26,17 @@ use app_data::{
 };
 use chrono::Utc;
 
-use crate::message::model::message::{MessageBoxVo, MessageVo};
+use crate::{
+    message::model::message::{MessageBoxVo, MessageVo},
+    notice::repository::{
+        notice_read_repo::{
+            Column as NoticeReadColumn, Entity as NoticeReadEntity,
+        },
+        notice_repo::{
+            Column as NoticeColumn, Entity as NoticeEntity, visible_condition,
+        },
+    },
+};
 
 /// 消息分类常量（对齐 Java SysMessageServiceImpl）。
 const CATEGORY_SYSTEM: &str = "system";
@@ -101,17 +111,93 @@ impl MessageRepository {
         user_id: i64,
     ) -> Result<MessageBoxVo, DataError> {
         let since = Utc::now() - chrono::Duration::days(BOX_DAYS);
+        // 公告列表 = 站内消息流水(category=notice) + 定向公告(sys_notice)。
+        let mut notice_list = self
+            .select_category_list(ctx, CATEGORY_NOTICE, user_id, since)
+            .await?;
+        notice_list.extend(self.select_notice_list(ctx, user_id).await?);
         Ok(MessageBoxVo {
             system_list: self
                 .select_category_list(ctx, CATEGORY_SYSTEM, user_id, since)
                 .await?,
-            notice_list: self
-                .select_category_list(ctx, CATEGORY_NOTICE, user_id, since)
-                .await?,
+            notice_list,
             workflow_list: self
                 .select_category_list(ctx, CATEGORY_WORKFLOW, user_id, since)
                 .await?,
         })
+    }
+
+    /// 查询当前用户可见的已发布公告,并合并已读回执。
+    ///
+    /// 可见性:`send_status='1'` 且(`target_type='ALL'` 或用户命中
+    /// `user_ids` CSV);回执来自 `sys_notice_read`(无行视为未读)。
+    async fn select_notice_list(
+        &self,
+        ctx: &DataContext<'_>,
+        user_id: i64,
+    ) -> Result<Vec<MessageVo>, DataError> {
+        let notices = ctx
+            .select(
+                NoticeEntity::find()
+                    .filter(NoticeColumn::SendStatus.eq(
+                        crate::notice::model::notice::SEND_STATUS_PUBLISHED,
+                    ))
+                    .filter(visible_condition(user_id))
+                    .order_by_desc(NoticeColumn::SendTime)
+                    .order_by_desc(NoticeColumn::NoticeId)
+                    .limit(BOX_LIMIT),
+            )
+            .without_row_scope()
+            .all()
+            .await?;
+        if notices.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let notice_ids: Vec<i64> =
+            notices.iter().map(|n| n.notice_id).collect();
+        let reads = ctx
+            .select(
+                NoticeReadEntity::find()
+                    .filter(NoticeReadColumn::UserId.eq(user_id))
+                    .filter(NoticeReadColumn::NoticeId.is_in(notice_ids)),
+            )
+            .without_row_scope()
+            .all()
+            .await?;
+        let reads: std::collections::HashMap<i64, _> =
+            reads.into_iter().map(|r| (r.notice_id, r)).collect();
+
+        Ok(notices
+            .into_iter()
+            .map(|notice| {
+                let read = reads.get(&notice.notice_id);
+                MessageVo {
+                    message_id: notice.notice_id,
+                    category: CATEGORY_NOTICE.to_string(),
+                    r#type: notice.notice_type.clone(),
+                    source: "NOTICE".to_string(),
+                    title: Some(notice.notice_title.clone()),
+                    message: Some(notice.notice_title.clone()),
+                    content: notice.notice_content.clone(),
+                    data: None,
+                    path: Some(format!(
+                        "/system/notice?noticeId={}",
+                        notice.notice_id
+                    )),
+                    create_time: notice.send_time.or(notice.create_time),
+                    read_flag: Some(
+                        read.map(|r| r.read_flag.clone())
+                            .unwrap_or_else(|| "0".to_string()),
+                    ),
+                    read_time: read.and_then(|r| r.read_time),
+                    star_flag: Some(
+                        read.map(|r| r.star_flag.clone())
+                            .unwrap_or_else(|| "0".to_string()),
+                    ),
+                }
+            })
+            .collect())
     }
 
     /// 查询单个分类的消息列表(见模块头豁免锚)。

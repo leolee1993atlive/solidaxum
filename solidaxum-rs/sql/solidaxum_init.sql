@@ -322,6 +322,60 @@ CREATE TABLE `sys_message` (
   KEY `idx_sys_message_category_time` (`category`,`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='消息记录表';
 
+DROP TABLE IF EXISTS `sys_message_channel`;
+
+CREATE TABLE `sys_message_channel` (
+  `channel_id` bigint NOT NULL COMMENT '渠道配置ID',
+  `channel` varchar(32) NOT NULL COMMENT '渠道标识(DINGTALK/WECHAT/FEISHU)',
+  `channel_name` varchar(64) NOT NULL COMMENT '渠道名称',
+  `enabled` char(1) NOT NULL DEFAULT '0' COMMENT '是否启用（1是 0否）',
+  `client_id` varchar(255) DEFAULT NULL COMMENT '客户端ID(AppKey/CorpId/AppId)',
+  `client_secret` varchar(500) DEFAULT NULL COMMENT '客户端密钥(AES密文)',
+  `agent_id` varchar(64) DEFAULT NULL COMMENT '应用AgentId',
+  `agent_secret` varchar(500) DEFAULT NULL COMMENT '应用密钥(AES密文)',
+  `base_url` varchar(500) DEFAULT NULL COMMENT '自定义API基址',
+  `domain` varchar(255) DEFAULT NULL COMMENT '自定义域名',
+  `del_flag` char(1) NOT NULL DEFAULT '0' COMMENT '删除标志（0存在 2删除）',
+  `create_dept` bigint DEFAULT NULL COMMENT '创建部门',
+  `create_by` bigint DEFAULT NULL COMMENT '创建者',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  `update_by` bigint DEFAULT NULL COMMENT '更新者',
+  `update_time` datetime DEFAULT NULL COMMENT '更新时间',
+  `remark` varchar(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (`channel_id`),
+  UNIQUE KEY `uk_sys_message_channel_channel` (`channel`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='消息渠道配置表';
+
+INSERT INTO `sys_message_channel` (`channel_id`, `channel`, `channel_name`, `enabled`, `del_flag`) VALUES
+(1762000000000000001, 'DINGTALK', '钉钉', '0', '0'),
+(1762000000000000002, 'WECHAT', '企业微信', '0', '0'),
+(1762000000000000003, 'FEISHU', '飞书', '0', '0');
+
+DROP TABLE IF EXISTS `sys_message_send_log`;
+
+CREATE TABLE `sys_message_send_log` (
+  `log_id` bigint NOT NULL COMMENT '日志ID',
+  `tenant_id` varchar(20) DEFAULT '000000' COMMENT '租户ID',
+  `batch_id` varchar(64) DEFAULT NULL COMMENT '批次ID',
+  `biz_type` varchar(64) DEFAULT NULL COMMENT '业务类型',
+  `biz_id` varchar(64) DEFAULT NULL COMMENT '业务ID',
+  `channel` varchar(32) NOT NULL COMMENT '渠道(SSE/APP/SMS/WECHAT/DINGTALK/FEISHU)',
+  `recipient_user_ids` text COMMENT '收件人用户ID JSON数组',
+  `content` longtext COMMENT '发送内容',
+  `status` varchar(16) NOT NULL COMMENT '状态(SKIPPED/SUCCESS/FAILED)',
+  `skip_reason` varchar(128) DEFAULT NULL COMMENT '跳过原因',
+  `error_message` varchar(2000) DEFAULT NULL COMMENT '错误信息(已脱敏)',
+  `provider_response` varchar(1000) DEFAULT NULL COMMENT '平台响应(截断)',
+  `create_dept` bigint DEFAULT NULL COMMENT '创建部门',
+  `create_by` bigint DEFAULT NULL COMMENT '创建者',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  `update_by` bigint DEFAULT NULL COMMENT '更新者',
+  `update_time` datetime DEFAULT NULL COMMENT '更新时间',
+  PRIMARY KEY (`log_id`),
+  KEY `idx_sys_message_send_log_channel_time` (`channel`,`create_time`),
+  KEY `idx_sys_message_send_log_biz` (`biz_type`,`biz_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='消息发送日志表';
+
 
 DROP TABLE IF EXISTS `flow_spel`;
 
@@ -376,6 +430,9 @@ CREATE TABLE `sys_user` (
   `user_type` varchar(10) DEFAULT 'sys_user' COMMENT '用户类型（sys_user系统用户）',
   `email` varchar(50) DEFAULT '' COMMENT '用户邮箱',
   `phone_number` varchar(11) DEFAULT '' COMMENT '手机号码',
+  `wechat_user_id` varchar(128) DEFAULT NULL COMMENT '企业微信userid',
+  `dingtalk_user_id` varchar(128) DEFAULT NULL COMMENT '钉钉userid',
+  `feishu_user_id` varchar(128) DEFAULT NULL COMMENT '飞书open_id',
   `gender` char(1) DEFAULT '0' COMMENT '用户性别（0男 1女 2未知）',
   `avatar` bigint DEFAULT NULL COMMENT '头像地址',
   `password` varchar(100) DEFAULT '' COMMENT '密码',
@@ -521,6 +578,10 @@ CREATE TABLE `sys_notice` (
   `notice_type` char(1) NOT NULL COMMENT '公告类型（1通知 2公告）',
   `notice_content` longblob COMMENT '公告内容',
   `status` char(1) DEFAULT '0' COMMENT '公告状态（0正常 1关闭）',
+  `target_type` varchar(10) DEFAULT 'ALL' COMMENT '目标类型（ALL全部 USER指定用户）',
+  `user_ids` varchar(2000) DEFAULT NULL COMMENT '目标用户ID串（逗号分隔）',
+  `send_status` char(1) DEFAULT '0' COMMENT '发送状态（0草稿 1已发布 2已撤回）',
+  `send_time` datetime DEFAULT NULL COMMENT '发送时间',
   `create_dept` bigint DEFAULT NULL COMMENT '创建部门',
   `create_by` bigint DEFAULT NULL COMMENT '创建者',
   `create_time` datetime DEFAULT NULL COMMENT '创建时间',
@@ -533,6 +594,21 @@ CREATE TABLE `sys_notice` (
 INSERT INTO `sys_notice` (`notice_id`, `notice_title`, `notice_type`, `notice_content`, `status`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES
 (1761800000000000001, '温馨提醒：2018-07-01 新版本发布啦', '2', 0xe696b0e78988e69cace58685e5aeb9, '0', 1761000000000000103, 1761100000000000001, '2026-06-14 15:36:16', NULL, NULL, '管理员'),
 (1761800000000000002, '维护通知：2018-07-01 系统凌晨维护', '1', 0xe7bbb4e68aa4e58685e5aeb9, '0', 1761000000000000103, 1761100000000000001, '2026-06-14 15:36:16', NULL, NULL, '管理员');
+
+DROP TABLE IF EXISTS `sys_notice_read`;
+
+CREATE TABLE `sys_notice_read` (
+  `id` bigint NOT NULL COMMENT '主键',
+  `notice_id` bigint NOT NULL COMMENT '公告ID',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `read_flag` char(1) DEFAULT '0' COMMENT '已读标志（0未读 1已读）',
+  `read_time` datetime DEFAULT NULL COMMENT '已读时间',
+  `star_flag` char(1) DEFAULT '0' COMMENT '星标标志（0否 1是）',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sys_notice_read_notice_user` (`notice_id`, `user_id`),
+  KEY `idx_sys_notice_read_user` (`user_id`, `read_flag`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='公告已读回执表';
 
 DROP TABLE IF EXISTS `sys_client`;
 
@@ -1360,6 +1436,18 @@ INSERT INTO `test_demo` (`id`, `dept_id`, `user_id`, `order_num`, `test_key`, `v
 (1762100000000000013, 1761000000000000108, 1761100000000000003, 5, '子节点99', '9999', 0, 1761000000000000103, '2026-06-14 15:36:18', 1761100000000000001, NULL, NULL, 0);
 
 DROP TABLE IF EXISTS `sys_role`;
+
+-- B5 消息渠道配置菜单(系统管理 → 消息渠道)
+INSERT INTO `sys_menu` (`menu_id`, `menu_name`, `parent_id`, `order_num`, `path`, `component`, `query_param`, `is_frame`, `is_cache`, `menu_type`, `visible`, `status`, `perms`, `icon`, `active_menu`, `ext`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES
+(1761400000000000160, '消息渠道', 1761400000000000001, 13, 'messageChannel', 'system/messageChannel/index', '', '1', '0', 'C', '0', '0', 'system:messageChannel:list', 'message', '', '', 1761000000000000103, 1761100000000000001, '2026-10-31 08:00:00', NULL, NULL, '消息渠道配置菜单'),
+(1761400000000001070, '渠道查询', 1761400000000000160, 1, '', NULL, '', '1', '0', 'F', '0', '0', 'system:messageChannel:list', '#', '', '', 1761000000000000103, 1761100000000000001, '2026-10-31 08:00:00', NULL, NULL, ''),
+(1761400000000001071, '渠道修改', 1761400000000000160, 2, '', NULL, '', '1', '0', 'F', '0', '0', 'system:messageChannel:edit', '#', '', '', 1761000000000000103, 1761100000000000001, '2026-10-31 08:00:00', NULL, NULL, ''),
+(1761400000000001072, '渠道测试', 1761400000000000160, 3, '', NULL, '', '1', '0', 'F', '0', '0', 'system:messageChannel:test', '#', '', '', 1761000000000000103, 1761100000000000001, '2026-10-31 08:00:00', NULL, NULL, '');
+
+-- B5 消息发送历史菜单(系统管理 → 消息发送历史)
+INSERT INTO `sys_menu` (`menu_id`, `menu_name`, `parent_id`, `order_num`, `path`, `component`, `query_param`, `is_frame`, `is_cache`, `menu_type`, `visible`, `status`, `perms`, `icon`, `active_menu`, `ext`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES
+(1761400000000000170, '消息发送历史', 1761400000000000001, 14, 'messageLog', 'system/messageLog/index', '', '1', '0', 'C', '0', '0', 'system:messageChannel:list', 'log', '', '', 1761000000000000103, 1761100000000000001, '2026-10-31 08:00:00', NULL, NULL, '消息发送历史菜单'),
+(1761400000000001073, '历史查询', 1761400000000000170, 1, '', NULL, '', '1', '0', 'F', '0', '0', 'system:messageChannel:list', '#', '', '', 1761000000000000103, 1761100000000000001, '2026-10-31 08:00:00', NULL, NULL, '');
 
 CREATE TABLE `sys_role` (
   `role_id` bigint NOT NULL COMMENT '角色ID',

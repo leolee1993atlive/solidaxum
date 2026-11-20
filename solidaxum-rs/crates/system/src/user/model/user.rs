@@ -27,6 +27,12 @@ pub struct User {
     pub user_type: Option<String>,
     pub email: Option<String>,
     pub phone_number: Option<String>,
+    /// 企业微信 userid(推送编排按手机号回填)
+    pub wechat_user_id: Option<String>,
+    /// 钉钉 userid
+    pub dingtalk_user_id: Option<String>,
+    /// 飞书 open_id
+    pub feishu_user_id: Option<String>,
     pub gender: Option<String>,
     pub avatar: Option<i64>,
     pub status: String,
@@ -52,6 +58,9 @@ impl User {
             user_type: Some("sys_user".to_string()),
             email: bo.email,
             phone_number: bo.phone_number.clone(),
+            wechat_user_id: bo.wechat_user_id,
+            dingtalk_user_id: bo.dingtalk_user_id,
+            feishu_user_id: bo.feishu_user_id,
             gender: bo.gender,
             avatar: None,
             status: bo
@@ -73,6 +82,9 @@ impl User {
         self.nick_name = bo.nick_name;
         self.email = bo.email;
         self.phone_number = bo.phone_number.clone();
+        self.wechat_user_id = bo.wechat_user_id;
+        self.dingtalk_user_id = bo.dingtalk_user_id;
+        self.feishu_user_id = bo.feishu_user_id;
         self.gender = bo.gender;
         self.status = bo.status.unwrap_or_else(|| self.status.clone());
         self.remark = bo.remark;
@@ -86,6 +98,9 @@ impl User {
             nick_name: self.nick_name.clone(),
             email: self.email.clone(),
             phone_number: self.phone_number.clone(),
+            wechat_user_id: self.wechat_user_id.clone(),
+            dingtalk_user_id: self.dingtalk_user_id.clone(),
+            feishu_user_id: self.feishu_user_id.clone(),
             gender: self.gender.clone(),
             status: self.status.clone(),
             del_flag: self.del_flag.clone(),
@@ -105,6 +120,9 @@ impl User {
             user_type: self.user_type.clone(),
             email: self.email.clone(),
             phone_number: self.phone_number.clone(),
+            wechat_user_id: self.wechat_user_id.clone(),
+            dingtalk_user_id: self.dingtalk_user_id.clone(),
+            feishu_user_id: self.feishu_user_id.clone(),
             gender: self.gender.clone(),
             avatar: self.avatar,
             avatar_url: None,
@@ -131,6 +149,9 @@ pub struct UserCreateBo {
     pub nick_name: String,
     pub phone_number: Option<String>,
     pub email: Option<String>,
+    pub wechat_user_id: Option<String>,
+    pub dingtalk_user_id: Option<String>,
+    pub feishu_user_id: Option<String>,
     pub gender: Option<String>,
     pub status: Option<String>,
     pub remark: Option<String>,
@@ -149,6 +170,9 @@ pub struct UserUpdateBo {
     pub nick_name: String,
     pub phone_number: Option<String>,
     pub email: Option<String>,
+    pub wechat_user_id: Option<String>,
+    pub dingtalk_user_id: Option<String>,
+    pub feishu_user_id: Option<String>,
     pub gender: Option<String>,
     pub status: Option<String>,
     pub remark: Option<String>,
@@ -178,6 +202,9 @@ pub struct UserListVo {
     pub nick_name: String,
     pub email: Option<String>,
     pub phone_number: Option<String>,
+    pub wechat_user_id: Option<String>,
+    pub dingtalk_user_id: Option<String>,
+    pub feishu_user_id: Option<String>,
     pub gender: Option<String>,
     pub status: String,
     pub del_flag: Option<String>,
@@ -280,6 +307,9 @@ pub struct SysUserVo {
     pub user_type: Option<String>,
     pub email: Option<String>,
     pub phone_number: Option<String>,
+    pub wechat_user_id: Option<String>,
+    pub dingtalk_user_id: Option<String>,
+    pub feishu_user_id: Option<String>,
     pub gender: Option<String>,
     /// 头像 OSS ID（对齐 RuoYi 6.X：avatar 保留原始 ID）
     pub avatar: Option<i64>,

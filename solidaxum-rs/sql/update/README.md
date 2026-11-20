@@ -12,4 +12,10 @@
 - 变更稳定后折回 `sql/solidaxum_init.sql` 并同步各方言目录
   (`dm/`、`sqlite/`、`postgresql/`),然后从本目录移除。
 
-目前为空。
+目前脚本:
+- `2026-10-31_b5_message_channel.sql` — B5 消息渠道配置与发送日志
+  (幂等;MySQL 见本目录,达梦/SQLite/PostgreSQL 同名脚本在各方言 update 目录)
+- `2026-10-31_b5_user_platform_ids.sql` — B5 sys_user 三平台推送 ID
+  (非幂等 ALTER 加列;已执行则跳过,重复执行会报列已存在)
+- `2026-10-31_b5_notice_target.sql` — B5 定向公告与已读回执
+  (非幂等 ALTER 加列;CREATE TABLE IF NOT EXISTS 段可重复执行)

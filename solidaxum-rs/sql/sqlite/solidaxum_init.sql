@@ -326,6 +326,60 @@ CREATE TABLE `sys_message` (
 );
 CREATE INDEX idx_sys_message_category_time ON sys_message (`category`,`create_time`);
 
+DROP TABLE IF EXISTS `sys_message_channel`;
+
+CREATE TABLE `sys_message_channel` (
+  `channel_id` bigint NOT NULL,
+  `channel` varchar(32) NOT NULL,
+  `channel_name` varchar(64) NOT NULL,
+  `enabled` char(1) NOT NULL DEFAULT '0',
+  `client_id` varchar(255) DEFAULT NULL,
+  `client_secret` varchar(500) DEFAULT NULL,
+  `agent_id` varchar(64) DEFAULT NULL,
+  `agent_secret` varchar(500) DEFAULT NULL,
+  `base_url` varchar(500) DEFAULT NULL,
+  `domain` varchar(255) DEFAULT NULL,
+  `del_flag` char(1) NOT NULL DEFAULT '0',
+  `create_dept` bigint DEFAULT NULL,
+  `create_by` bigint DEFAULT NULL,
+  `create_time` datetime DEFAULT NULL,
+  `update_by` bigint DEFAULT NULL,
+  `update_time` datetime DEFAULT NULL,
+  `remark` varchar(500) DEFAULT NULL,
+  PRIMARY KEY (`channel_id`),
+  UNIQUE (`channel`)
+);
+
+INSERT INTO `sys_message_channel` (`channel_id`, `channel`, `channel_name`, `enabled`, `del_flag`) VALUES
+(1762000000000000001, 'DINGTALK', '钉钉', '0', '0'),
+(1762000000000000002, 'WECHAT', '企业微信', '0', '0'),
+(1762000000000000003, 'FEISHU', '飞书', '0', '0');
+
+DROP TABLE IF EXISTS `sys_message_send_log`;
+
+CREATE TABLE `sys_message_send_log` (
+  `log_id` bigint NOT NULL,
+  `tenant_id` varchar(20) DEFAULT '000000',
+  `batch_id` varchar(64) DEFAULT NULL,
+  `biz_type` varchar(64) DEFAULT NULL,
+  `biz_id` varchar(64) DEFAULT NULL,
+  `channel` varchar(32) NOT NULL,
+  `recipient_user_ids` TEXT,
+  `content` TEXT,
+  `status` varchar(16) NOT NULL,
+  `skip_reason` varchar(128) DEFAULT NULL,
+  `error_message` varchar(2000) DEFAULT NULL,
+  `provider_response` varchar(1000) DEFAULT NULL,
+  `create_dept` bigint DEFAULT NULL,
+  `create_by` bigint DEFAULT NULL,
+  `create_time` datetime DEFAULT NULL,
+  `update_by` bigint DEFAULT NULL,
+  `update_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`log_id`)
+);
+CREATE INDEX idx_sys_message_send_log_channel_time ON sys_message_send_log (`channel`,`create_time`);
+CREATE INDEX idx_sys_message_send_log_biz ON sys_message_send_log (`biz_type`,`biz_id`);
+
 
 
 DROP TABLE IF EXISTS `flow_spel`;
@@ -383,6 +437,9 @@ CREATE TABLE `sys_user` (
   `user_type` varchar(10) DEFAULT 'sys_user',
   `email` varchar(50) DEFAULT '',
   `phone_number` varchar(11) DEFAULT '',
+  `wechat_user_id` varchar(128) DEFAULT NULL,
+  `dingtalk_user_id` varchar(128) DEFAULT NULL,
+  `feishu_user_id` varchar(128) DEFAULT NULL,
   `gender` char(1) DEFAULT '0',
   `avatar` bigint DEFAULT NULL,
   `password` varchar(100) DEFAULT '',
@@ -531,6 +588,10 @@ CREATE TABLE `sys_notice` (
   `notice_type` char(1) NOT NULL,
   `notice_content` BLOB,
   `status` char(1) DEFAULT '0',
+  `target_type` varchar(10) DEFAULT 'ALL',
+  `user_ids` varchar(2000) DEFAULT NULL,
+  `send_status` char(1) DEFAULT '0',
+  `send_time` datetime DEFAULT NULL,
   `create_dept` bigint DEFAULT NULL,
   `create_by` bigint DEFAULT NULL,
   `create_time` datetime DEFAULT NULL,
@@ -544,6 +605,21 @@ CREATE TABLE `sys_notice` (
 INSERT INTO `sys_notice` (`notice_id`, `notice_title`, `notice_type`, `notice_content`, `status`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES
 (1761800000000000001, '温馨提醒：2018-07-01 新版本发布啦', '2', x'e696b0e78988e69cace58685e5aeb9', '0', 1761000000000000103, 1761100000000000001, '2026-06-14 15:36:16', NULL, NULL, '管理员'),
 (1761800000000000002, '维护通知：2018-07-01 系统凌晨维护', '1', x'e7bbb4e68aa4e58685e5aeb9', '0', 1761000000000000103, 1761100000000000001, '2026-06-14 15:36:16', NULL, NULL, '管理员');
+
+DROP TABLE IF EXISTS `sys_notice_read`;
+
+CREATE TABLE `sys_notice_read` (
+  `id` bigint NOT NULL,
+  `notice_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `read_flag` char(1) DEFAULT '0',
+  `read_time` datetime DEFAULT NULL,
+  `star_flag` char(1) DEFAULT '0',
+  `create_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE (`notice_id`, `user_id`)
+);
+CREATE INDEX `idx_sys_notice_read_user` ON `sys_notice_read` (`user_id`, `read_flag`);
 
 DROP TABLE IF EXISTS `sys_client`;
 
@@ -1415,6 +1491,18 @@ CREATE TABLE `sys_role` (
 CREATE INDEX idx_sys_role_create_dept ON sys_role (`create_dept`);
 CREATE INDEX idx_sys_role_create_by ON sys_role (`create_by`);
 
+
+-- B5 消息渠道配置菜单(系统管理 → 消息渠道)
+INSERT INTO `sys_menu` (`menu_id`, `menu_name`, `parent_id`, `order_num`, `path`, `component`, `query_param`, `is_frame`, `is_cache`, `menu_type`, `visible`, `status`, `perms`, `icon`, `active_menu`, `ext`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES
+(1761400000000000160, '消息渠道', 1761400000000000001, 13, 'messageChannel', 'system/messageChannel/index', '', '1', '0', 'C', '0', '0', 'system:messageChannel:list', 'message', '', '', 1761000000000000103, 1761100000000000001, '2026-10-31 08:00:00', NULL, NULL, '消息渠道配置菜单'),
+(1761400000000001070, '渠道查询', 1761400000000000160, 1, '', NULL, '', '1', '0', 'F', '0', '0', 'system:messageChannel:list', '#', '', '', 1761000000000000103, 1761100000000000001, '2026-10-31 08:00:00', NULL, NULL, ''),
+(1761400000000001071, '渠道修改', 1761400000000000160, 2, '', NULL, '', '1', '0', 'F', '0', '0', 'system:messageChannel:edit', '#', '', '', 1761000000000000103, 1761100000000000001, '2026-10-31 08:00:00', NULL, NULL, ''),
+(1761400000000001072, '渠道测试', 1761400000000000160, 3, '', NULL, '', '1', '0', 'F', '0', '0', 'system:messageChannel:test', '#', '', '', 1761000000000000103, 1761100000000000001, '2026-10-31 08:00:00', NULL, NULL, '');
+
+-- B5 消息发送历史菜单(系统管理 → 消息发送历史)
+INSERT INTO `sys_menu` (`menu_id`, `menu_name`, `parent_id`, `order_num`, `path`, `component`, `query_param`, `is_frame`, `is_cache`, `menu_type`, `visible`, `status`, `perms`, `icon`, `active_menu`, `ext`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES
+(1761400000000000170, '消息发送历史', 1761400000000000001, 14, 'messageLog', 'system/messageLog/index', '', '1', '0', 'C', '0', '0', 'system:messageChannel:list', 'log', '', '', 1761000000000000103, 1761100000000000001, '2026-10-31 08:00:00', NULL, NULL, '消息发送历史菜单'),
+(1761400000000001073, '历史查询', 1761400000000000170, 1, '', NULL, '', '1', '0', 'F', '0', '0', 'system:messageChannel:list', '#', '', '', 1761000000000000103, 1761100000000000001, '2026-10-31 08:00:00', NULL, NULL, '');
 
 INSERT INTO `sys_role` (`role_id`, `role_name`, `role_key`, `role_sort`, `data_scope`, `menu_check_strictly`, `dept_check_strictly`, `status`, `del_flag`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES
 (1761300000000000001, '超级管理员', 'superadmin', 1, '1', 1, 1, '0', '0', 1761000000000000103, 1761100000000000001, '2026-06-14 15:35:55', NULL, NULL, '超级管理员'),

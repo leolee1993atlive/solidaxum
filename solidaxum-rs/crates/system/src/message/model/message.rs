@@ -19,6 +19,13 @@ pub struct MessageVo {
     pub data: Option<serde_json::Value>,
     pub path: Option<String>,
     pub create_time: Option<DateTimeUtc>,
+    /// 公告已读状态(仅公告条目有值;系统/流程消息为 None)。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub read_flag: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub read_time: Option<DateTimeUtc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub star_flag: Option<String>,
 }
 
 impl MessageVo {
@@ -38,6 +45,9 @@ impl MessageVo {
             data,
             path: m.path.clone(),
             create_time: m.create_time,
+            read_flag: None,
+            read_time: None,
+            star_flag: None,
         }
     }
 }

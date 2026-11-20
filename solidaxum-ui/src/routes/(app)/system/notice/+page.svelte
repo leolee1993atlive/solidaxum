@@ -3,6 +3,7 @@
   import { noticeApi } from '$lib/api/system/notice.js'
   import type {
     NoticeListVo,
+    NoticeMyVo,
     NoticeCreateBo,
     NoticeUpdateBo,
   } from '$lib/api/system/notice.js'
@@ -24,7 +25,15 @@
     fromListResult,
     useCrudTable,
   } from '$lib/composables/use-crud-table.svelte.js'
-  import { Plus, Pencil, Trash2, Eye } from '@lucide/svelte'
+  import {
+    Plus,
+    Pencil,
+    Trash2,
+    Eye,
+    Send,
+    CheckCheck,
+    Inbox,
+  } from '@lucide/svelte'
   import type { ColumnDef } from '@tanstack/table-core'
   import { toast } from 'svelte-sonner'
 
@@ -122,6 +131,8 @@
     noticeType: string
     noticeContent: string
     status: string
+    targetType: string
+    userIds: string
   }
 
   function emptyForm(): NoticeFormModel {
@@ -130,6 +141,8 @@
       noticeType: '1',
       noticeContent: '',
       status: '0',
+      targetType: 'ALL',
+      userIds: '',
     }
   }
 
@@ -149,6 +162,8 @@
       noticeType: row.noticeType ?? '1',
       noticeContent: row.noticeContent ?? '',
       status: row.status ?? '0',
+      targetType: row.targetType ?? 'ALL',
+      userIds: row.userIds ?? '',
     }
     dialogOpen = true
   }
@@ -156,6 +171,10 @@
   async function handleConfirm() {
     if (!form.noticeTitle) {
       toast.error('公告标题不能为空')
+      return
+    }
+    if (form.targetType === 'USER' && !form.userIds.trim()) {
+      toast.error('定向公告必须填写目标用户ID')
       return
     }
     saving = true
@@ -167,6 +186,8 @@
           noticeType: form.noticeType || undefined,
           noticeContent: form.noticeContent || undefined,
           status: form.status,
+          targetType: form.targetType,
+          userIds: form.targetType === 'USER' ? form.userIds : undefined,
         }
         await noticeApi.update(payload)
         toast.success('修改成功')
@@ -176,6 +197,8 @@
           noticeType: form.noticeType || undefined,
           noticeContent: form.noticeContent || undefined,
           status: form.status,
+          targetType: form.targetType,
+          userIds: form.targetType === 'USER' ? form.userIds : undefined,
         }
         await noticeApi.create(payload)
         toast.success('新增成功')
@@ -212,6 +235,74 @@
       // apiClient 已 toast
     } finally {
       deleting = false
+    }
+  }
+
+  // ---- 发布(定向目标;已发布的重复发布由后端 400 拦截) ----
+  let publishing = $state<string | null>(null)
+
+  async function publishNotice(row: NoticeListVo) {
+    publishing = row.noticeId
+    try {
+      await noticeApi.publish(row.noticeId)
+      toast.success('发布成功')
+      crudTable.reload()
+    } catch {
+      // apiClient 已 toast
+    } finally {
+      publishing = null
+    }
+  }
+
+  // ---- 我的公告(已读回执) ----
+  let myOpen = $state(false)
+  let myLoading = $state(false)
+  let myRows = $state<NoticeMyVo[]>([])
+
+  async function loadMyNotice() {
+    myLoading = true
+    try {
+      const resp = await noticeApi.my({ pageNum: 1, pageSize: 100 })
+      myRows = resp.rows
+    } catch {
+      // apiClient 已 toast
+    } finally {
+      myLoading = false
+    }
+  }
+
+  async function openMyNotice() {
+    myOpen = true
+    await loadMyNotice()
+  }
+
+  async function markAllRead() {
+    try {
+      await noticeApi.readAll()
+      toast.success('已全部标记为已读')
+      await loadMyNotice()
+    } catch {
+      // apiClient 已 toast
+    }
+  }
+
+  async function openMyNoticeDetail(row: NoticeMyVo) {
+    detail = {
+      noticeId: row.noticeId,
+      noticeTitle: row.noticeTitle,
+      noticeType: row.noticeType,
+      noticeContent: row.noticeContent,
+      status: '0',
+      createTime: row.createTime,
+    }
+    detailOpen = true
+    if (row.readFlag !== '1') {
+      try {
+        await noticeApi.markRead(row.noticeId)
+        await loadMyNotice()
+      } catch {
+        // apiClient 已 toast
+      }
     }
   }
 
@@ -268,6 +359,9 @@
           <Plus class="mr-1 h-4 w-4" />新增
         </Button>
       </HasPermi>
+      <Button size="sm" variant="outline" onclick={openMyNotice}>
+        <Inbox class="mr-1 h-4 w-4" />我的公告
+      </Button>
     {/snippet}
     {#snippet queryForm()}
       <QueryForm
@@ -294,6 +388,18 @@
             <Eye class="size-4" />
           </Button>
           <HasPermi perm="system:notice:edit">
+            {#if r.sendStatus !== '1'}
+              <Button
+                variant="ghost"
+                size="icon"
+                title="发布"
+                aria-label="发布"
+                disabled={publishing === r.noticeId}
+                onclick={() => publishNotice(r)}
+              >
+                <Send class="size-4" />
+              </Button>
+            {/if}
             <Button
               variant="ghost"
               size="icon"
@@ -359,6 +465,23 @@
       <option value="1">关闭</option>
     </select>
   </div>
+  <div class="flex flex-col gap-3">
+    <Label for="targetType">目标范围</Label>
+    <select id="targetType" class={SELECT_CLASS} bind:value={form.targetType}>
+      <option value="ALL">全部用户</option>
+      <option value="USER">指定用户</option>
+    </select>
+  </div>
+  {#if form.targetType === 'USER'}
+    <div class="flex flex-col gap-3">
+      <Label for="userIds">目标用户ID</Label>
+      <Input
+        id="userIds"
+        bind:value={form.userIds}
+        placeholder="多个用户ID用英文逗号分隔，如 301,302"
+      />
+    </div>
+  {/if}
 </FormDrawer>
 
 <Dialog.Root bind:open={detailOpen}>
@@ -390,6 +513,54 @@
       <hr class="border-border" />
       <!-- NTC2:正文必须走 SafeHtml(sanitizeHtml 白名单) —— 仓库护栏 html-contract.test.ts 只允许 SafeHtml 组件渲染原始 HTML -->
       <SafeHtml html={detail?.noticeContent ?? ''} />
+    </div>
+    <Dialog.Footer>
+      <Dialog.Close>关闭</Dialog.Close>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={myOpen}>
+  <Dialog.Content class="sm:max-w-[640px]">
+    <Dialog.Header>
+      <Dialog.Title>我的公告</Dialog.Title>
+      <Dialog.Description class="sr-only"
+        >查看当前用户可见的公告</Dialog.Description
+      >
+    </Dialog.Header>
+    <div class="flex justify-end">
+      <Button variant="outline" size="sm" onclick={markAllRead}>
+        <CheckCheck class="mr-1 h-4 w-4" />全部已读
+      </Button>
+    </div>
+    <div class="max-h-[60vh] space-y-2 overflow-y-auto">
+      {#if myLoading}
+        <div class="text-muted-foreground text-sm">加载中…</div>
+      {:else if myRows.length === 0}
+        <div class="text-muted-foreground text-sm">暂无公告</div>
+      {:else}
+        {#each myRows as row (row.noticeId)}
+          <button
+            type="button"
+            class="hover:bg-accent flex w-full items-start gap-3 rounded-md border p-3 text-left"
+            onclick={() => openMyNoticeDetail(row)}
+          >
+            <span class="flex-1">
+              <span class="block text-sm font-medium">{row.noticeTitle}</span>
+              <span class="text-muted-foreground block text-xs">
+                {row.sendTime || row.createTime || ''}
+              </span>
+            </span>
+            <span
+              class="text-xs {row.readFlag === '1'
+                ? 'text-muted-foreground'
+                : 'text-foreground font-medium'}"
+            >
+              {row.readFlag === '1' ? '已读' : '未读'}
+            </span>
+          </button>
+        {/each}
+      {/if}
     </div>
     <Dialog.Footer>
       <Dialog.Close>关闭</Dialog.Close>

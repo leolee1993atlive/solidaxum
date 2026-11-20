@@ -20,6 +20,10 @@ pub struct Infrastructure {
     /// `DataSource::connect` 后经 `derive_with_resolver` 派生带 resolver
     /// 的主 ds 注入这里。
     ds: OnceLock<Arc<app_data::DataSource>>,
+    /// 字段级加密器(security.aes_key 解析后由装配层一次性注入;供
+    /// sys_oss_config / sys_message_channel 等密钥列加解密复用)。
+    field_encryptor:
+        OnceLock<Option<Arc<dyn crate::serde::encrypt_field::FieldEncryptor>>>,
 }
 
 impl Infrastructure {
@@ -35,7 +39,25 @@ impl Infrastructure {
             captcha_enabled,
             token_ttl,
             ds: OnceLock::new(),
+            field_encryptor: OnceLock::new(),
         }
+    }
+
+    /// 装配期一次性注入字段加密器(None = 未配置 aes_key,密钥列落明文)。
+    /// 返回 bool 而非 panic:被拒只说明重复装配(编程错误),首次句柄仍
+    /// 在生效。
+    pub fn set_field_encryptor(
+        &self,
+        encryptor: Option<Arc<dyn crate::serde::encrypt_field::FieldEncryptor>>,
+    ) -> bool {
+        self.field_encryptor.set(encryptor).is_ok()
+    }
+
+    /// 读取字段加密器(未装配 → None)。
+    pub fn field_encryptor(
+        &self,
+    ) -> Option<Arc<dyn crate::serde::encrypt_field::FieldEncryptor>> {
+        self.field_encryptor.get().and_then(|v| v.clone())
     }
 
     /// 装配后访问器:返回存储的同一 Arc(指针稳定,resolver 的跨请求缓存
