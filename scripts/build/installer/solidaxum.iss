@@ -65,6 +65,7 @@ Filename: "{app}\service\{code:GetServiceName}.exe"; Parameters: "uninstall"; Fl
 var
   SuffixPage: TInputQueryWizardPage;
   PortPage: TInputQueryWizardPage;
+  HttpsPage: TInputQueryWizardPage;
   DbPage: TInputQueryWizardPage;
   DbTypeCombo: TNewComboBox;
   DbHelpLabel: TNewStaticText;
@@ -149,9 +150,40 @@ begin
     Result := Result + '-' + GetSuffix();
 end;
 
+// 已写配置是否启用 HTTPS(读 {app}\config.toml,而非向导内存态
+// —— 升级选 1 不关闭已有 HTTPS,内存态与磁盘可能不同)。
+function ConfigHttpsEnabled(): Boolean;
+var
+  Lines: TArrayOfString;
+  I: Integer;
+  InSection: Boolean;
+  Line: String;
+begin
+  Result := False;
+  InSection := False;
+  if not FileExists(ExpandConstant('{app}\config.toml')) then
+    exit;
+  if not LoadStringsFromFile(ExpandConstant('{app}\config.toml'), Lines) then
+    exit;
+  for I := 0 to GetArrayLength(Lines) - 1 do
+  begin
+    Line := Trim(Lines[I]);
+    if Copy(Line, 1, 1) = '[' then
+      InSection := (Pos('[server.https]', Line) = 1)
+    else if InSection and (Pos('enabled', Line) = 1) then
+    begin
+      Result := (Pos('true', Line) > 0);
+      exit;
+    end;
+  end;
+end;
+
 function GetAppUrl(Param: String): String;
 begin
-  Result := 'http://localhost:' + Trim(PortPage.Values[0]) + '/';
+  if ConfigHttpsEnabled() then
+    Result := 'https://localhost:' + Trim(PortPage.Values[0]) + '/'
+  else
+    Result := 'http://localhost:' + Trim(PortPage.Values[0]) + '/';
 end;
 
 // ---------- 后缀合法性 ----------
@@ -314,6 +346,19 @@ begin
   PortPage.Add('端口:', False);
   PortPage.Values[0] := '3000';
 
+  // HTTPS(首装增强):内网安全合规形态。模式行控制其余三行是否有意义
+  HttpsPage := CreateInputQueryPage(PortPage.ID,
+    'HTTPS(可选)', '内网安全合规要求 HTTPS 形态时启用',
+    '模式:1 = 不启用(默认);2 = 自签证书(安装时生成,有效期 3650 天,'+#13#10+
+    '浏览器会告警,客户端需手动信任);3 = 导入自有证书(PEM)。'+#13#10#13#10+
+    '升级安装选 1 不会关闭已配置的 HTTPS;自签证书已存在时也不会重新生成。');
+  HttpsPage.Add('模式 (1/2/3):', False);
+  HttpsPage.Add('自签 - 服务器 IP 或主机名:', False);
+  HttpsPage.Add('导入 - 证书 PEM 路径:', False);
+  HttpsPage.Add('导入 - 私钥 PEM 路径:', False);
+  HttpsPage.Values[0] := '1';
+  HttpsPage.Values[1] := 'localhost';
+
   DbPage := CreateInputQueryPage(PortPage.ID,
     '数据库', '请填一个已存在的空库,以及对它有读写权限的账号',
     '');
@@ -410,6 +455,24 @@ begin
   PushStr(L, 'port = ' + Trim(RedisPage.Values[1]));
   PushStr(L, 'password = ' + Q(RedisPage.Values[2]));
   PushStr(L, 'db = ' + Trim(RedisPage.Values[3]));
+
+  // HTTPS(首装增强):选了才写;1/缺省 = 二进制不动已有配置(升级语义)
+  if Trim(HttpsPage.Values[0]) = '2' then
+  begin
+    PushStr(L, '');
+    PushStr(L, '[server.https]');
+    PushStr(L, 'mode = "self-signed"');
+    PushStr(L, 'cn = ' + Q(Trim(HttpsPage.Values[1])));
+  end
+  else if Trim(HttpsPage.Values[0]) = '3' then
+  begin
+    PushStr(L, '');
+    PushStr(L, '[server.https]');
+    PushStr(L, 'mode = "import"');
+    PushStr(L, 'cert = ' + Q(Trim(HttpsPage.Values[2])));
+    PushStr(L, 'key = ' + Q(Trim(HttpsPage.Values[3])));
+  end;
+
   PushStr(L, '');
   SaveStringsToFile(Path, L, False);
 end;
@@ -467,6 +530,15 @@ begin
       ErrText := '无法读取现有配置: ' + ExistingDir + '\config.toml';
       exit;
     end;
+    // HTTPS 证书同样以现有目录为起点:writer 对已存在的自签证书不重生成,
+    // 升级才不会让所有已信任的客户端重新信任一次。
+    // (源提交漏了这一步,与 Linux 侧一并补上)
+    if FileExists(ExistingDir + '\certs\server-cert.pem') then
+      CopyFile(ExistingDir + '\certs\server-cert.pem',
+               ExpandConstant('{tmp}\certs\server-cert.pem'), False);
+    if FileExists(ExistingDir + '\certs\server-key.pem') then
+      CopyFile(ExistingDir + '\certs\server-key.pem',
+               ExpandConstant('{tmp}\certs\server-key.pem'), False);
   end
   else
     DeleteFile(Cfg);
@@ -550,6 +622,41 @@ begin
   begin
     if IsUpgrade then
       PrefillFromExisting();
+  end
+
+  else if CurPageID = HttpsPage.ID then
+  begin
+    if Trim(HttpsPage.Values[0]) = '2' then
+    begin
+      if Trim(HttpsPage.Values[1]) = '' then
+      begin
+        MsgBox('自签模式需要填服务器 IP 或主机名。', mbError, MB_OK);
+        Result := False;
+        exit;
+      end;
+    end
+    else if Trim(HttpsPage.Values[0]) = '3' then
+    begin
+      if (Trim(HttpsPage.Values[2]) = '') or (Trim(HttpsPage.Values[3]) = '') then
+      begin
+        MsgBox('导入模式需要证书与私钥两个 PEM 路径。', mbError, MB_OK);
+        Result := False;
+        exit;
+      end;
+      if (not FileExists(Trim(HttpsPage.Values[2])))
+        or (not FileExists(Trim(HttpsPage.Values[3]))) then
+      begin
+        MsgBox('证书或私钥文件不存在,请检查路径。', mbError, MB_OK);
+        Result := False;
+        exit;
+      end;
+    end
+    else if Trim(HttpsPage.Values[0]) <> '1' then
+    begin
+      MsgBox('HTTPS 模式只能是 1、2 或 3。', mbError, MB_OK);
+      Result := False;
+      exit;
+    end;
   end
 
   else if CurPageID = PortPage.ID then
@@ -682,11 +789,18 @@ function PortIsOpen(): Boolean;
 var
   Code: Integer;
 begin
-  // 用后端自己的 /api/health 探活比探 TCP 更准:端口开着不代表路由就绪
-  Result := Exec(ExpandConstant('{cmd}'),
-    '/C curl -s -o nul --max-time 2 http://localhost:'
-    + Trim(PortPage.Values[0]) + '/api/health',
-    '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
+  // 用后端自己的 /api/health 探活比探 TCP 更准:端口开着不代表路由就绪。
+  // HTTPS(自签)必须 -k,否则证书校验失败探活永远不通
+  if ConfigHttpsEnabled() then
+    Result := Exec(ExpandConstant('{cmd}'),
+      '/C curl -s -k -o nul --max-time 2 https://localhost:'
+      + Trim(PortPage.Values[0]) + '/api/health',
+      '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0)
+  else
+    Result := Exec(ExpandConstant('{cmd}'),
+      '/C curl -s -o nul --max-time 2 http://localhost:'
+      + Trim(PortPage.Values[0]) + '/api/health',
+      '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -705,6 +819,22 @@ begin
   begin
     RaiseException('写入 config.toml 失败: ' + ExpandConstant('{app}')
                    + '\config.toml');
+  end;
+
+  // 1b. HTTPS 证书跟随落盘:--write-config 在 {tmp} 里生成/导入了
+  //     certs/(自签或导入副本),必须一起搬到 {app} 才与 config 相对路径对上
+  if DirExists(ExpandConstant('{tmp}\certs')) then
+  begin
+    CreateDir(ExpandConstant('{app}\certs'));
+    CopyFile(ExpandConstant('{tmp}\certs\server-cert.pem'),
+             ExpandConstant('{app}\certs\server-cert.pem'), False);
+    CopyFile(ExpandConstant('{tmp}\certs\server-key.pem'),
+             ExpandConstant('{app}\certs\server-key.pem'), False);
+    // 私钥与 config 同待遇:仅 SYSTEM 与管理员可读
+    Exec(ExpandConstant('{sys}\icacls.exe'),
+         '"' + ExpandConstant('{app}\certs\server-key.pem')
+         + '" /inheritance:r /grant:r "*S-1-5-18:F" /grant:r "*S-1-5-32-544:F"',
+         '', SW_HIDE, ewWaitUntilTerminated, Code);
   end;
 
   // 2. 收紧权限:里面有数据库密码和加密密钥

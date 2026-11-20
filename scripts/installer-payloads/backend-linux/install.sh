@@ -206,6 +206,25 @@ port = $REDIS_PORT_RAW
 password = $REDIS_PASSWORD_RAW
 db = $REDIS_DB_RAW
 EOF
+  # HTTPS:用户选了才写;off/缺节 = 二进制不动已有配置(升级语义)
+  if [[ -n "$HTTPS_MODE" ]]; then
+    printf '
+[server.https]
+mode = "%s"
+' "$HTTPS_MODE" >> "$out"
+    if [[ -n "$HTTPS_CN_RAW" ]]; then
+      printf 'cn = %s
+' "$HTTPS_CN_RAW" >> "$out"
+    fi
+    if [[ -n "$HTTPS_CERT_RAW" ]]; then
+      printf 'cert = %s
+' "$HTTPS_CERT_RAW" >> "$out"
+    fi
+    if [[ -n "$HTTPS_KEY_RAW" ]]; then
+      printf 'key = %s
+' "$HTTPS_KEY_RAW" >> "$out"
+    fi
+  fi
 }
 
 # ---------- 提问原语 ----------
@@ -390,13 +409,35 @@ http_probe_tool() {
 # 探后端自己的 /api/health 比探 TCP 准:端口开着不代表路由就绪。
 # 没有 HTTP 工具时退化成 TCP 端口探测(bash 内建 /dev/tcp,无外部依赖)。
 health_ok() {
-  local port="$1" tool
+  # scheme 缺省 http(旧调用兼容)。https 时必须放宽证书校验:
+  # 自签证书过不了验证,探活会永远失败。
+  local port="$1" scheme="${2:-http}" tool url
+  url="${scheme}://localhost:${port}/api/health"
   tool="$(http_probe_tool)"
   case "$tool" in
-    curl) curl -s -o /dev/null --max-time 2 "http://localhost:${port}/api/health" ;;
-    wget) wget -q -O /dev/null --timeout=2 "http://localhost:${port}/api/health" ;;
+    curl)
+      if [[ "$scheme" == "https" ]]; then
+        curl -s -k -o /dev/null --max-time 2 "$url"
+      else
+        curl -s -o /dev/null --max-time 2 "$url"
+      fi
+      ;;
+    wget)
+      if [[ "$scheme" == "https" ]]; then
+        wget -q --no-check-certificate -O /dev/null --timeout=2 "$url"
+      else
+        wget -q -O /dev/null --timeout=2 "$url"
+      fi
+      ;;
+    # /dev/tcp 只验 TCP 可达,TLS 握手不在此层 —— 退化探活仍比不探强
     *)    (exec 3<>"/dev/tcp/127.0.0.1/${port}") 2>/dev/null ;;
   esac
+}
+
+# 已写配置是否启用了 HTTPS(单一真相源:读 config.toml 而非内存变量
+# —— 升级场景 writer 不动已有 https,内存态与磁盘可能不同)。
+config_https_enabled() {
+  [[ "$(toml_raw_value "$1" server.https enabled)" == "true" ]]
 }
 
 # ---------- 全局状态 ----------
@@ -422,6 +463,11 @@ OLD_UNIT_BACKUP=""
 
 # 答案(TOML 原文形式)。默认值对齐 config.toml.example。
 PORT_RAW='3000'
+# HTTPS(首装增强):空 = 不启用;self-signed / import 见 ask_https
+HTTPS_MODE=""
+HTTPS_CN_RAW=""
+HTTPS_CERT_RAW=""
+HTTPS_KEY_RAW=""
 DB_TYPE='mysql'
 DB_URL_RAW='"127.0.0.1"'
 DB_PORT_RAW='3306'
@@ -494,10 +540,11 @@ cleanup_on_fail() {
     fi
   fi
 
-  # 全新安装:删掉刚写的 config.toml。
-  # 升级路径下绝不删 —— 那是用户的现有配置。
+  # 全新安装:删掉刚写的 config.toml 与证书目录(两者都是本次物化的)。
+  # 升级路径下绝不删 —— 那是用户的现有配置/证书。
   if [[ "$CONFIG_WRITTEN" == "true" && "$IS_UPGRADE" != "true" ]]; then
     rm -f "$PREFIX/config.toml"
+    rm -rf "$PREFIX/certs"
   fi
 
   local f d
@@ -567,6 +614,49 @@ ask_port() {
     break
   done
   PORT_RAW="$port"
+}
+
+ask_https() {
+  local choice v
+  echo ""
+  echo "── HTTPS(可选;内网安全合规形态)─────────────"
+  echo "  1) 不启用(纯 HTTP,默认)"
+  echo "  2) 自签证书:安装时自动生成,有效期 3650 天"
+  echo "     (浏览器会告警,客户端需手动信任:Windows 导入证书存储 /"
+  echo "      Linux update-ca-certificates)"
+  echo "  3) 导入自有证书(PEM)"
+  echo "  注:升级安装选 1 不会关闭已配置的 HTTPS(保持原样);"
+  echo "     自签证书已存在时也不会重新生成。"
+  ask choice "选择" "1" https_choice_is_valid "只能是 1、2 或 3"
+  case "$choice" in
+    2)
+      HTTPS_MODE="self-signed"
+      ask v "服务器 IP 或主机名(写入证书)" "localhost" not_empty "不能为空"
+      HTTPS_CN_RAW="$(toml_quote "$v")"
+      ;;
+    3)
+      HTTPS_MODE="import"
+      while true; do
+        ask v "证书 PEM 路径" "" not_empty "路径不能为空"
+        [[ -f "$v" ]] && break
+        echo "  ✗ 文件不存在: $v" >&2
+      done
+      HTTPS_CERT_RAW="$(toml_quote "$v")"
+      while true; do
+        ask v "私钥 PEM 路径" "" not_empty "路径不能为空"
+        [[ -f "$v" ]] && break
+        echo "  ✗ 文件不存在: $v" >&2
+      done
+      HTTPS_KEY_RAW="$(toml_quote "$v")"
+      ;;
+    *)
+      HTTPS_MODE=""
+      ;;
+  esac
+}
+
+https_choice_is_valid() {
+  [[ "$1" == "1" || "$1" == "2" || "$1" == "3" ]]
 }
 
 ask_db() {
@@ -702,6 +792,7 @@ ask_all() {
   echo "[2/6] 收集配置..."
   ask_service_identity
   ask_port
+  ask_https
   ask_db
   ask_redis
 }
@@ -726,8 +817,12 @@ generate_and_verify_config() {
     # 升级:以现有 config.toml 为起点,--write-config 只做外科更新,
     # security.aes_key / jwt.secret 与手改的高级项因此得以保留。
     rm -f "$cfg"
+    rm -rf "$TMP_DIR/certs"   # 上一轮失败重试时可能残留
     if [[ "$IS_UPGRADE" == "true" && -f "$OLD_PREFIX/config.toml" ]]; then
       cp "$OLD_PREFIX/config.toml" "$cfg"
+      # HTTPS 证书同样以旧目录为起点:writer 对已存在的自签证书不重生成,
+      # 升级才不会让所有已信任的客户端重新信任一次。
+      [[ -d "$OLD_PREFIX/certs" ]] && cp -a "$OLD_PREFIX/certs" "$TMP_DIR/certs"
     fi
 
     rc=0
@@ -825,6 +920,17 @@ apply() {
   chown "$SVC_USER:$SVC_GROUP" "$PREFIX/config.toml"
   chmod 600 "$PREFIX/config.toml"
 
+  # HTTPS 证书(自签/导入副本)由 --write-config 物化在 $TMP_DIR/certs,
+  # 必须跟随 config.toml 一起搬到安装目录 —— config 里用的是相对路径。
+  # 源提交漏了这一步(certs 随 TMP_DIR 删除,服务启动即证书缺失失败),
+  # 本移植补上。合并而非整体覆盖:客户可能在 certs/ 放过其他文件。
+  if [[ -d "$TMP_DIR/certs" ]]; then
+    mkdir -p "$PREFIX/certs"
+    cp -a "$TMP_DIR/certs/." "$PREFIX/certs/"
+    chown -R "$SVC_USER:$SVC_GROUP" "$PREFIX/certs"
+    chmod 700 "$PREFIX/certs"
+  fi
+
   # 运行目录与权限
   chmod a+rx "$PREFIX"
   chmod 755 "$PREFIX/$REPO_NAME"
@@ -882,8 +988,10 @@ start_and_probe() {
   echo "[6/6] 启动服务..."
   systemctl start "$SVC_NAME"
 
+  local scheme="http"
+  config_https_enabled "$PREFIX/config.toml" && scheme="https"
   for i in $(seq 1 30); do
-    if health_ok "$port"; then
+    if health_ok "$port" "$scheme"; then
       echo "  ✓ 服务已就绪"
       return 0
     fi
@@ -900,14 +1008,19 @@ start_and_probe() {
 }
 
 print_next_steps() {
-  local port
+  local port scheme="http"
   port="$(toml_display_value "$PORT_RAW")"
+  config_https_enabled "$PREFIX/config.toml" && scheme="https"
   echo ""
   echo "✓ 安装完成"
   echo "  服务目录    : $PREFIX"
   echo "  服务名      : $SVC_NAME"
   echo "  systemd unit: $SVC_FILE"
-  echo "  访问地址    : http://localhost:${port}/"
+  echo "  访问地址    : ${scheme}://localhost:${port}/"
+  if [[ "$scheme" == "https" ]]; then
+    echo "  HTTPS 证书  : $PREFIX/certs/(自签证书浏览器会告警,客户端需手动"
+    echo "                信任;可直接替换这两个 PEM 为自有证书后重启)"
+  fi
   if [[ -n "$CONFIG_BACKUP" ]]; then
     echo "  配置备份    : $CONFIG_BACKUP"
   fi

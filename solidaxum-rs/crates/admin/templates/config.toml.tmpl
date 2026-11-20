@@ -14,9 +14,9 @@ host = "localhost"
 # Windows 导入证书存储 / Linux update-ca-certificates)。
 # 也可直接替换 certs/ 下两个 PEM 为自有证书,保持路径不变即可。
 [server.https]
-enabled = false
-cert = "certs/server-cert.pem"
-key = "certs/server-key.pem"
+enabled = @HTTPS_ENABLED@
+cert = "@HTTPS_CERT@"
+key = "@HTTPS_KEY@"
 
 # ────────── 数据库 ──────────
 # db_type: mysql | postgres | sqlite | dm(达梦 DM8,走 ODBC)

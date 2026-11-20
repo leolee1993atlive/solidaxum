@@ -21,7 +21,7 @@ use crate::installer::dsn::{
     build_db_dsn, build_redis_url, schema_search_path,
 };
 
-/// 校验 config.toml:解析 → aes_key 长度 → DB 连通 → Redis 连通(PING)。
+/// 校验 config.toml:解析 → aes_key 长度 → HTTPS 证书可读 → DB 连通 → Redis 连通(PING)。
 ///
 /// 任一失败返回 `anyhow::Error`,stderr 供安装脚本展示并循环重问。
 pub async fn check_config(path: &Path) -> anyhow::Result<()> {
@@ -38,10 +38,20 @@ pub async fn check_config(path: &Path) -> anyhow::Result<()> {
     // 1. aes_key 长度校验(友好报错,不 panic)
     check_aes_key(&config)?;
 
-    // 2. DB 连通性
+    // 2. HTTPS 证书预检:与运行时同一装载器 —— 这里过不了,启动也起不来
+    //    (fail-fast),不如在安装向导里就让用户看到。
+    if config.server.https.enabled {
+        crate::tls::build_server_config(
+            Path::new(&config.server.https.cert),
+            Path::new(&config.server.https.key),
+        )
+        .context("HTTPS 证书校验失败(检查 [server.https] 的 cert/key)")?;
+    }
+
+    // 3. DB 连通性
     check_db(&config).await?;
 
-    // 3. Redis 连通性(PING)
+    // 4. Redis 连通性(PING)
     check_redis(&config).await?;
 
     Ok(())
