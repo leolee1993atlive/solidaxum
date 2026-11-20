@@ -80,6 +80,44 @@ pub struct ServiceContainer {
     scope_cache: ScopeCacheSlot,
 }
 
+/// 解析 `security.aes_key`(base64 32 字节)并构造 AES 字段加密器。
+/// 未配置/格式错误 → None,调用方降级为明文并打印告警(与 haems 同口径)。
+fn build_field_encryptor(
+    aes_key: Option<String>,
+) -> Option<Arc<dyn FieldEncryptor>> {
+    match aes_key {
+        Some(key) if !key.is_empty() => {
+            use base64::{Engine, engine::general_purpose::STANDARD};
+            match STANDARD.decode(&key) {
+                Ok(bytes) if bytes.len() == 32 => {
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(&bytes);
+                    Some(Arc::new(
+                        app_core::serde::encrypt_field::AesFieldEncryptor::new(
+                            arr, "ENC:",
+                        ),
+                    ) as Arc<dyn FieldEncryptor>)
+                }
+                Ok(bytes) => {
+                    tracing::error!(
+                        "security.aes_key 解码后长度 {} 不是 32 字节，字段加密已禁用",
+                        bytes.len()
+                    );
+                    None
+                }
+                Err(e) => {
+                    tracing::error!(
+                        error = %e,
+                        "security.aes_key base64 解码失败，字段加密已禁用"
+                    );
+                    None
+                }
+            }
+        }
+        _ => None,
+    }
+}
+
 impl ServiceContainer {
     pub fn new(
         infra: &Infrastructure,
@@ -89,6 +127,14 @@ impl ServiceContainer {
         // 先造空槽发给 role/user/dept 服务(它们是失效调用点),
         // 装配层再后补真句柄 —— 服务与容器必须共享同一格槽,set 一次全体可见。
         let scope_cache = empty_scope_cache_slot();
+        // 字段加密器只建一份:OSS 配置与消息渠道共用同一把 security.aes_key
+        // (密钥列必须先解/加密再落库),同时注入 infra 供新模块按需读取。
+        let field_encryptor = build_field_encryptor(aes_key);
+        if !infra.set_field_encryptor(field_encryptor.clone()) {
+            tracing::error!(
+                "field_encryptor 重复装配被拒绝,首次注入的句柄继续生效"
+            );
+        }
         Ok(Self {
             user_service: UserService::new(infra)
                 .with_scope_cache(scope_cache.clone()),
@@ -112,44 +158,7 @@ impl ServiceContainer {
             sys_config_service: ConfigService::new(infra),
             translation_service: TranslationService::new(infra),
             push_hub: PushHub::new(),
-            oss_service: {
-                let encryptor = match aes_key {
-                    Some(ref key) if !key.is_empty() => {
-                        use base64::{
-                            Engine, engine::general_purpose::STANDARD,
-                        };
-                        match STANDARD.decode(key) {
-                            Ok(bytes) if bytes.len() == 32 => {
-                                let mut arr = [0u8; 32];
-                                arr.copy_from_slice(&bytes);
-                                Some(
-                                    Arc::new(
-                                        app_core::serde::encrypt_field::AesFieldEncryptor::new(
-                                            arr, "ENC:",
-                                        ),
-                                    ) as Arc<dyn FieldEncryptor>,
-                                )
-                            }
-                            Ok(bytes) => {
-                                tracing::error!(
-                                    "security.aes_key 解码后长度 {} 不是 32 字节，OSS 字段加密已禁用",
-                                    bytes.len()
-                                );
-                                None
-                            }
-                            Err(e) => {
-                                tracing::error!(
-                                    error = %e,
-                                    "security.aes_key base64 解码失败，OSS 字段加密已禁用"
-                                );
-                                None
-                            }
-                        }
-                    }
-                    _ => None,
-                };
-                OssService::with_encryptor(infra, encryptor)
-            },
+            oss_service: OssService::with_encryptor(infra, field_encryptor),
             gen_table_service: GenTableService::new(
                 // 元数据读取经 app-data 漏斗(设计 6.3 meta 行)。此处恒为
                 // 装配后捕获:装配层(admin/app.rs)必先

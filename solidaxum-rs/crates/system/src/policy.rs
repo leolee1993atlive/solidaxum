@@ -46,6 +46,7 @@ use crate::{
     notice::repository::notice_repo,
     oss::repository::{oss_config_repo, oss_repo},
     post::repository::post_repo,
+    push::repository::{sys_message_channel, sys_message_send_log},
     relation::{role_dept, role_menu, user_post, user_role},
     role::repository::role_repo,
     social::repository::social_repo,
@@ -359,6 +360,54 @@ impl DataPolicy for notice_repo::Entity {
 /// sys_message:站内消息 —— send_user_ids 是 String 目标用户串("0" 表示全局),
 /// 不是 i64 归属列,不能当 owner;仅有审计列 → 显式豁免。
 impl DataPolicy for message_repo::Entity {
+    const CONSTRAINED: bool = false;
+    fn dept_column() -> Option<Self::Column> {
+        None
+    }
+    fn owner_column() -> Option<Self::Column> {
+        None
+    }
+    fn soft_delete() -> Option<(Self::Column, &'static str)> {
+        None
+    }
+    fn audit_columns() -> Option<AuditColumns<Self::ActiveModel>> {
+        Some(AuditColumns {
+            create_dept: Some(|m, v| m.create_dept = ActiveValue::Set(Some(v))),
+            create_by: Some(|m, v| m.create_by = ActiveValue::Set(Some(v))),
+            create_time: Some(|m, v| m.create_time = ActiveValue::Set(Some(v))),
+            update_by: Some(|m, v| m.update_by = ActiveValue::Set(Some(v))),
+            update_time: Some(|m, v| m.update_time = ActiveValue::Set(Some(v))),
+        })
+    }
+}
+
+/// sys_message_channel:三 IM 渠道配置(全局配置)。显式豁免行级范围;
+/// 软删列 del_flag 照常生效(渠道配置删除走软删),审计五件套齐全。
+impl DataPolicy for sys_message_channel::Entity {
+    const CONSTRAINED: bool = false;
+    fn dept_column() -> Option<Self::Column> {
+        None
+    }
+    fn owner_column() -> Option<Self::Column> {
+        None
+    }
+    fn soft_delete() -> Option<(Self::Column, &'static str)> {
+        Some((Self::Column::DelFlag, DelFlag::Alive.as_str()))
+    }
+    fn audit_columns() -> Option<AuditColumns<Self::ActiveModel>> {
+        Some(AuditColumns {
+            create_dept: Some(|m, v| m.create_dept = ActiveValue::Set(Some(v))),
+            create_by: Some(|m, v| m.create_by = ActiveValue::Set(Some(v))),
+            create_time: Some(|m, v| m.create_time = ActiveValue::Set(Some(v))),
+            update_by: Some(|m, v| m.update_by = ActiveValue::Set(Some(v))),
+            update_time: Some(|m, v| m.update_time = ActiveValue::Set(Some(v))),
+        })
+    }
+}
+
+/// sys_message_send_log:发送日志(insert-only,全局审计流水)。
+/// 显式豁免行级范围;无软删列(只追加,不删除),审计五件套齐全。
+impl DataPolicy for sys_message_send_log::Entity {
     const CONSTRAINED: bool = false;
     fn dept_column() -> Option<Self::Column> {
         None
